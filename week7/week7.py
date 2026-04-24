@@ -65,6 +65,7 @@ ENEMY_W,  ENEMY_H  = 30, 30
 
 MIN_SPEED = 8
 MAX_SPEED = 11
+FAST_SPEED = 25
 
 # ===============================
 # ===== 패턴 데이터 =====
@@ -84,10 +85,10 @@ pattern1 = [
 
 pattern2 = [
     {"time": 60,   "x": 0},
-    {"time": 60,  "x": 225},
-    {"time": 60,  "x": 450},
-    {"time": 180,  "x": 170},
-    {"time": 180,  "x": 395},
+    {"time": 70,  "x": 225},
+    {"time": 80,  "x": 450},
+    {"time": 90,  "x": 170},
+    {"time": 100,  "x": 395},
     {"time": 180, "x": 620},
     {"time": 300, "x": -50},
     {"time": 300, "x": 200},
@@ -127,7 +128,7 @@ def get_spawn_delay(score):
 # ===============================
 # ===== 패턴 스폰 =====
 # ===============================
-def spawn_pattern(pattern, frame, speed):
+def spawn_pattern_big(pattern, frame, speed):
     spawned = []
     global spawned_set
 
@@ -145,7 +146,7 @@ def spawn_pattern(pattern, frame, speed):
 
     return spawned
 
-def spawn_pattern_warning(pattern, frame, speed):
+def spawn_pattern_warning(pattern, frame, speed, player):
     spawned = []
     global spawned_set
 
@@ -155,7 +156,8 @@ def spawn_pattern_warning(pattern, frame, speed):
 
         if p["time"] <= frame:
             w = int(ENEMY_W * 0.6)
-            rect = pygame.Rect(p["x"], 0, w, HEIGHT)
+            x = player.centerx - w // 2
+            rect = pygame.Rect(x, 0, w, HEIGHT)
 
             spawned.append([rect, speed, "fast_warning"])
             spawned_set.add(i)
@@ -333,14 +335,16 @@ def menu_screen():
 # ===== 패턴1 (Big Big Big) =====
 # ===============================
 def pattern1_update():
-    # 아직 패턴 내용 없음 (연출만)
     pass
 
-
-def draw_pattern_title():
+def draw_pattern_title(pattern_type):
     global pattern_scale, pattern_alpha
 
-    text = "Big Big Big"
+    if pattern_type == 1:
+        text = "Big Big Big"
+    elif pattern_type == 2:
+        text = "WARNING!!"
+
     size = int(72 * pattern_scale)
     temp_font = get_korean_font(size)
 
@@ -357,8 +361,11 @@ def run_game():
     global shake_timer, shake_intensity
     global last_score
     global spawned_set
+    global selected_pattern
+    global force_pattern
 
     spawned_set = set()
+    completed_patterns = set()
 
     player = pygame.Rect(WIDTH // 2 - PLAYER_W // 2, HEIGHT - 30, PLAYER_W, PLAYER_H)
     enemies = []
@@ -366,13 +373,24 @@ def run_game():
     lives = 3
     spawn_timer = 0
     invincible = 0
-
-    triggered_50 = False
-    triggered_200 = False
-    pattern_type = 1
+    selected_pattern = None
+    force_pattern = False
 
     while True:
         clock.tick(FPS)
+
+        if not force_pattern and not pattern_mode:
+            if score >= 50 and 1 not in completed_patterns:
+                pattern_mode = True
+                pattern_timer = 0
+                pattern_phase = 0
+                pattern_type = 1
+
+            elif score >= 200 and 2 not in completed_patterns:
+                pattern_mode = True
+                pattern_timer = 0
+                pattern_phase = 0
+                pattern_type = 2
 
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
@@ -381,33 +399,42 @@ def run_game():
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_1:
                     score = 50
+                    selected_pattern = 1
+                    force_pattern = True
                 if e.key == pygame.K_2:
                     score = 200
+                    selected_pattern = 2
+                    force_pattern = True
                 if e.key == pygame.K_3:
                     score = 400   
+                    selected_pattern = 3
+                    force_pattern = True
                 if e.key == pygame.K_4:
                     score = 700
+                    selected_pattern = 4
+                    force_pattern = True
                 if e.key == pygame.K_5:
-                    score = 1000                                                         
+                    score = 1000        
+                    selected_pattern = 5 
+                    force_pattern = True 
+
+        if force_pattern and not pattern_mode:
+            pattern_mode = True
+            pattern_timer = 0
+            pattern_phase = 0
+            pattern_type = selected_pattern
+
+            spawned_set.clear()
+
+            for i in range(1, pattern_type + 1):
+                completed_patterns.add(i)
+
+            force_pattern = False
+            selected_pattern = None                                              
 
         keys = pygame.key.get_pressed()
         if (keys[pygame.K_LEFT] or keys[pygame.K_a]) and player.left > 0: player.x -= 6
         if (keys[pygame.K_RIGHT] or keys[pygame.K_d]) and player.right < WIDTH: player.x += 6
-
-        # ===== 패턴 트리거 =====
-        if score >= 50 and not triggered_50:
-            triggered_50 = True
-            pattern_mode = True
-            pattern_timer = 0
-            pattern_phase = 0
-            pattern_type = 1
-
-        elif score >= 200 and not triggered_200 and not pattern_mode:
-            triggered_200 = True
-            pattern_mode = True
-            pattern_timer = 0
-            pattern_phase = 0
-            pattern_type = 2
 
         # ===== 일반 스폰 =====
         if not pattern_mode:
@@ -451,10 +478,10 @@ def run_game():
 
                 if pattern_type == 1:
                     pattern_speed = 8 if score < 2000 else 10
-                    new_blocks = spawn_pattern(pattern1, pattern_timer, pattern_speed)
+                    new_blocks = spawn_pattern_big(pattern1, pattern_timer, pattern_speed)
 
                 elif pattern_type == 2:
-                    new_blocks = spawn_pattern_warning(pattern2, pattern_timer)
+                    new_blocks = spawn_pattern_warning(pattern2, pattern_timer, 40, player)
 
                 enemies.extend(new_blocks)
 
@@ -468,10 +495,11 @@ def run_game():
                 pattern_timer = 0
                 pattern_scale = 1.0
                 pattern_alpha = 0
-                pattern_type = 1
+                completed_patterns.add(pattern_type)
 
                 pattern_mode = False
                 spawned_set.clear()
+                force_pattern = False
 
         # ===== 이동 =====
         survived = []
@@ -486,7 +514,7 @@ def run_game():
                     h = int(ENEMY_H * 0.6)
 
                     new_rect = pygame.Rect(rect.x, -h, w, h)
-                    new_speed = int(random.randint(MIN_SPEED, MAX_SPEED) * 2.4)
+                    new_speed = FAST_SPEED
 
                     survived.append([new_rect, new_speed, "fast"])
                 else:
@@ -579,7 +607,7 @@ def run_game():
         draw_hud(score, lives)
 
         if pattern_mode:
-            draw_pattern_title()
+            draw_pattern_title(pattern_type)
 
         pygame.display.flip()
 
