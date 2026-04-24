@@ -38,21 +38,24 @@ pattern_frame = 0
 pattern_index = 0
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Dodger")
+pygame.display.set_caption("Avoid Doodles")
 clock = pygame.time.Clock()
 font = get_korean_font(36)
 font_big = get_korean_font(72)
 
 pygame.mixer.init()
-pygame.mixer.music.load("week6/bgm.mp3")
-pygame.mixer.music.set_volume(1.0)
+pygame.mixer.music.load("week7/bgm.mp3")
+pygame.mixer.music.set_volume(0.2)
 pygame.mixer.music.play(-1)
+
+prob_img = pygame.image.load("week7\prob.png").convert_alpha()
+prob_img = pygame.transform.scale(prob_img, (30, 30))
 
 PLAYER_W, PLAYER_H = 30, 30
 ENEMY_W,  ENEMY_H  = 30, 30
 
-MIN_SPEED = 5
-MAX_SPEED = 8
+MIN_SPEED = 8
+MAX_SPEED = 11
 
 # ===============================
 # ===== 패턴 데이터 =====
@@ -61,13 +64,13 @@ pattern1 = [
     {"time": 60,   "x": 0},
     {"time": 60,  "x": 225},
     {"time": 60,  "x": 450},
-    {"time": 220,  "x": 170},
-    {"time": 220,  "x": 395},
-    {"time": 220, "x": 620},
-    {"time": 400, "x": -50},
-    {"time": 400, "x": 200},
-    {"time": 400, "x": 450},
-    {"time": 400, "x": 700},
+    {"time": 180,  "x": 170},
+    {"time": 180,  "x": 395},
+    {"time": 180, "x": 620},
+    {"time": 300, "x": -50},
+    {"time": 300, "x": 200},
+    {"time": 300, "x": 450},
+    {"time": 300, "x": 700},
 ]
 
 
@@ -87,17 +90,17 @@ def get_spawn_delay(score):
     if score >= 2001:
         return 5
     elif score >= 1001:
-        return 8
+        return 6
     elif score >= 701:
-        return 10
+        return 8
     elif score >= 501:
-        return 12
+        return 10
     elif score >= 301:
+        return 12
+    elif score >= 51:
         return 14
-    elif score >= 101:
-        return 16
     else:
-        return 18
+        return 16
 
 # ===============================
 # ===== 패턴 스폰 =====
@@ -124,21 +127,8 @@ def spawn_pattern(pattern, frame, speed):
 def spawn_enemy(score):
     rand = random.random()
 
-    
-
-    # ===== 좌우 등장 (300점 이상 5%) =====
-    if score >= 300 and rand < 0.05:
-        side = random.choice(["left", "right"])
-        y = random.randint(0, HEIGHT - ENEMY_H)
-        speed = random.randint(MIN_SPEED, MAX_SPEED)
-
-        if side == "left":
-            return pygame.Rect(-ENEMY_W, y, ENEMY_W, ENEMY_H), speed, "side_right"
-        else:
-            return pygame.Rect(WIDTH, y, ENEMY_W, ENEMY_H), speed, "side_left"
-
     # ===== 확률 설정 =====
-    if score <= 100:
+    if score <= 51:
         big_prob = 0
     elif score <= 1000:
         big_prob = 0.05
@@ -331,14 +321,14 @@ def run_game():
 
     spawned_set = set()
 
-    player = pygame.Rect(WIDTH // 2 - PLAYER_W // 2, HEIGHT - 60, PLAYER_W, PLAYER_H)
+    player = pygame.Rect(WIDTH // 2 - PLAYER_W // 2, HEIGHT - 30, PLAYER_W, PLAYER_H)
     enemies = []
-    score = 100
+    score = 50
     lives = 3
     spawn_timer = 0
     invincible = 0
 
-    triggered_100 = False
+    triggered_50 = False
 
     while True:
         clock.tick(FPS)
@@ -348,14 +338,12 @@ def run_game():
                 pygame.quit(); sys.exit()
 
         keys = pygame.key.get_pressed()
-        if (keys[pygame.K_LEFT] or keys[pygame.K_a]) and player.left > 0: player.x -= 5
-        if (keys[pygame.K_RIGHT] or keys[pygame.K_d]) and player.right < WIDTH: player.x += 5
-        if (keys[pygame.K_UP] or keys[pygame.K_w]) and player.top > 0: player.y -= 5
-        if (keys[pygame.K_DOWN] or keys[pygame.K_s]) and player.bottom < HEIGHT: player.y += 5
+        if (keys[pygame.K_LEFT] or keys[pygame.K_a]) and player.left > 0: player.x -= 6
+        if (keys[pygame.K_RIGHT] or keys[pygame.K_d]) and player.right < WIDTH: player.x += 6
 
         # ===== 패턴 트리거 =====
-        if score >= 100 and not triggered_100:
-            triggered_100 = True
+        if score >= 50 and not triggered_50:
+            triggered_50 = True
             pattern_mode = True
             pattern_timer = 0
             pattern_phase = 0
@@ -371,11 +359,6 @@ def run_game():
         # ===== 패턴 =====
         if pattern_mode:
             pattern_timer += 1
-
-            if pattern_phase == 4:
-                pattern_speed = 4 if score < 2000 else 10
-                new_blocks = spawn_pattern(pattern1, pattern_timer, pattern_speed)
-                enemies.extend(new_blocks)
 
             if pattern_phase == 0:
                 if pattern_timer > FPS * 3:
@@ -402,6 +385,19 @@ def run_game():
                     pattern_phase = 4
                     pattern_timer = 0
                     shake_timer = 0
+
+            else pattern_phase == 4:
+                pattern_speed = 8 if score < 2000 else 10
+                new_blocks = spawn_pattern(pattern1, pattern_timer, pattern_speed)
+                enemies.extend(new_blocks)
+                if pattern_timer > 500:
+                    pattern_phase = 5
+                    pattern_timer = 0
+
+            else
+
+                    pattern_mode = False
+                    spawned_set.clear()
 
         # ===== 이동 =====
         survived = []
@@ -463,7 +459,12 @@ def run_game():
             pygame.draw.rect(screen, BLUE, player.move(offset_x, offset_y))
 
         for rect, speed, etype in enemies:
-            pygame.draw.rect(screen, RED, rect.move(offset_x, offset_y))
+            draw_rect = rect.move(offset_x, offset_y)
+
+            if etype == "normal":
+                screen.blit(prob_img, draw_rect)
+            else:
+                pygame.draw.rect(screen, RED, draw_rect)
 
         draw_hud(score, lives)
 
