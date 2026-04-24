@@ -51,6 +51,15 @@ pygame.mixer.music.play(-1)
 prob_img = pygame.image.load("week7\prob.png").convert_alpha()
 prob_img = pygame.transform.scale(prob_img, (30, 30))
 
+prob_big_img = pygame.image.load("week7\prob_big.png").convert_alpha()
+prob_big_img = pygame.transform.scale(prob_big_img, (120, 120))
+
+prob_fast_img = pygame.image.load("week7\prob_fast.png").convert_alpha()
+prob_fast_img = pygame.transform.scale(prob_fast_img, (18, 18))
+
+prob_heal_img = pygame.image.load("week7\prob_heal.png").convert_alpha()
+prob_heal_img = pygame.transform.scale(prob_heal_img, (30, 30))
+
 PLAYER_W, PLAYER_H = 30, 30
 ENEMY_W,  ENEMY_H  = 30, 30
 
@@ -61,6 +70,19 @@ MAX_SPEED = 11
 # ===== 패턴 데이터 =====
 # ===============================
 pattern1 = [
+    {"time": 60,   "x": 0},
+    {"time": 60,  "x": 225},
+    {"time": 60,  "x": 450},
+    {"time": 180,  "x": 170},
+    {"time": 180,  "x": 395},
+    {"time": 180, "x": 620},
+    {"time": 300, "x": -50},
+    {"time": 300, "x": 200},
+    {"time": 300, "x": 450},
+    {"time": 300, "x": 700},
+]
+
+pattern2 = [
     {"time": 60,   "x": 0},
     {"time": 60,  "x": 225},
     {"time": 60,  "x": 450},
@@ -93,9 +115,9 @@ def get_spawn_delay(score):
         return 6
     elif score >= 701:
         return 8
-    elif score >= 501:
+    elif score >= 401:
         return 10
-    elif score >= 301:
+    elif score >= 201:
         return 12
     elif score >= 51:
         return 14
@@ -110,7 +132,6 @@ def spawn_pattern(pattern, frame, speed):
     global spawned_set
 
     for i, p in enumerate(pattern):
-
         if i in spawned_set:
             continue
 
@@ -124,6 +145,23 @@ def spawn_pattern(pattern, frame, speed):
 
     return spawned
 
+def spawn_pattern_warning(pattern, frame, speed):
+    spawned = []
+    global spawned_set
+
+    for i, p in enumerate(pattern):
+        if i in spawned_set:
+            continue
+
+        if p["time"] <= frame:
+            w = int(ENEMY_W * 0.6)
+            rect = pygame.Rect(p["x"], 0, w, HEIGHT)
+
+            spawned.append([rect, speed, "fast_warning"])
+            spawned_set.add(i)
+
+    return spawned
+
 def spawn_enemy(score):
     rand = random.random()
 
@@ -131,18 +169,18 @@ def spawn_enemy(score):
     if score <= 51:
         big_prob = 0
     elif score <= 1000:
-        big_prob = 0.05
+        big_prob = 0.06
     else:
         big_prob = 0.07
 
-    if score <= 300:
+    if score <= 200:
         fast_prob = 0
     elif score <= 1000:
-        fast_prob = 0.07
+        fast_prob = 0.08
     else:
         fast_prob = 0.10
 
-    heal_prob = 0 if score < 300 else 0.04
+    heal_prob = 0 if score < 400 else 0.03
 
     if score <= 500:
         wide_prob = 0
@@ -182,15 +220,16 @@ def spawn_enemy(score):
     if rand < cumulative:
         w = int(ENEMY_W * 0.6)
         h = int(ENEMY_H * 0.6)
-        speed = int(random.randint(MIN_SPEED, MAX_SPEED) * 1.8)
-        return pygame.Rect(random.randint(0, WIDTH - w), -h, w, h), speed, "fast"
+        x = random.randint(0, WIDTH - w)
+        rect = pygame.Rect(x, 0, w, HEIGHT)
+        return rect, 60, "fast_warning"
 
     # ===== 큰 =====
     cumulative += big_prob
     if rand < cumulative:
-        w = ENEMY_W * 8
-        h = ENEMY_H * 8
-        speed = int(random.randint(MIN_SPEED, MAX_SPEED) * 0.4)
+        w = ENEMY_W * 4
+        h = ENEMY_H * 4
+        speed = int(random.randint(MIN_SPEED, MAX_SPEED) * 0.6)
         return pygame.Rect(random.randint(0, WIDTH - w), -h, w, h), speed, "big"
 
     # ===== 기본 =====
@@ -323,12 +362,14 @@ def run_game():
 
     player = pygame.Rect(WIDTH // 2 - PLAYER_W // 2, HEIGHT - 30, PLAYER_W, PLAYER_H)
     enemies = []
-    score = 50
+    score = 0
     lives = 3
     spawn_timer = 0
     invincible = 0
 
     triggered_50 = False
+    triggered_200 = False
+    pattern_type = 1
 
     while True:
         clock.tick(FPS)
@@ -336,6 +377,18 @@ def run_game():
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
+
+            if e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_1:
+                    score = 50
+                if e.key == pygame.K_2:
+                    score = 200
+                if e.key == pygame.K_3:
+                    score = 400   
+                if e.key == pygame.K_4:
+                    score = 700
+                if e.key == pygame.K_5:
+                    score = 1000                                                         
 
         keys = pygame.key.get_pressed()
         if (keys[pygame.K_LEFT] or keys[pygame.K_a]) and player.left > 0: player.x -= 6
@@ -347,6 +400,14 @@ def run_game():
             pattern_mode = True
             pattern_timer = 0
             pattern_phase = 0
+            pattern_type = 1
+
+        elif score >= 200 and not triggered_200 and not pattern_mode:
+            triggered_200 = True
+            pattern_mode = True
+            pattern_timer = 0
+            pattern_phase = 0
+            pattern_type = 2
 
         # ===== 일반 스폰 =====
         if not pattern_mode:
@@ -386,22 +447,53 @@ def run_game():
                     pattern_timer = 0
                     shake_timer = 0
 
-            else pattern_phase == 4:
-                pattern_speed = 8 if score < 2000 else 10
-                new_blocks = spawn_pattern(pattern1, pattern_timer, pattern_speed)
+            elif pattern_phase == 4:
+
+                if pattern_type == 1:
+                    pattern_speed = 8 if score < 2000 else 10
+                    new_blocks = spawn_pattern(pattern1, pattern_timer, pattern_speed)
+
+                elif pattern_type == 2:
+                    new_blocks = spawn_pattern_warning(pattern2, pattern_timer)
+
                 enemies.extend(new_blocks)
+
                 if pattern_timer > 500:
                     pattern_phase = 5
                     pattern_timer = 0
 
-            else
+            elif pattern_phase == 5:
+                pattern_mode = False
+                spawned_set.clear()
+                pattern_timer = 0
+                pattern_scale = 1.0
+                pattern_alpha = 0
+                pattern_type = 1
 
-                    pattern_mode = False
-                    spawned_set.clear()
+                pattern_mode = False
+                spawned_set.clear()
 
         # ===== 이동 =====
         survived = []
         for rect, speed, etype in enemies:
+
+            # ===== fast 예고 =====
+            if etype == "fast_warning":
+                speed -= 1
+
+                if speed <= 0:
+                    w = int(ENEMY_W * 0.6)
+                    h = int(ENEMY_H * 0.6)
+
+                    new_rect = pygame.Rect(rect.x, -h, w, h)
+                    new_speed = int(random.randint(MIN_SPEED, MAX_SPEED) * 2.4)
+
+                    survived.append([new_rect, new_speed, "fast"])
+                else:
+                    survived.append([rect, speed, etype])
+                continue
+
+            # ===== 일반 이동 =====
             rect.y += speed
             if rect.top < HEIGHT:
                 survived.append([rect, speed, etype])
@@ -415,6 +507,9 @@ def run_game():
         else:
             for enemy in enemies[:]:
                 rect, speed, etype = enemy
+
+                if etype == "fast_warning":
+                    continue
 
                 if player.colliderect(rect):
 
@@ -463,6 +558,21 @@ def run_game():
 
             if etype == "normal":
                 screen.blit(prob_img, draw_rect)
+
+            elif etype == "big":
+                screen.blit(prob_big_img, draw_rect)
+            
+            elif etype == "fast":
+                screen.blit(prob_fast_img, draw_rect)
+
+            elif etype == "heal":
+                screen.blit(prob_heal_img, draw_rect)
+
+            elif etype == "fast_warning":
+                warning = pygame.Surface((rect.width, HEIGHT), pygame.SRCALPHA)
+                warning.fill((255, 0, 0, 100))
+                screen.blit(warning, (draw_rect.x, 0))
+
             else:
                 pygame.draw.rect(screen, RED, draw_rect)
 
