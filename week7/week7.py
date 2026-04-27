@@ -60,6 +60,12 @@ prob_fast_img = pygame.transform.scale(prob_fast_img, (18, 18))
 prob_heal_img = pygame.image.load("week7\prob_heal.png").convert_alpha()
 prob_heal_img = pygame.transform.scale(prob_heal_img, (30, 30))
 
+prob_wide_img = pygame.image.load("week7\wide.png").convert_alpha()
+prob_wide_img = pygame.transform.scale(prob_wide_img, (120, 30))
+
+prob_giant_img = pygame.image.load("week7\giant.png").convert_alpha()
+prob_giant_img = pygame.transform.scale(prob_giant_img, (180, 180))
+
 PLAYER_W, PLAYER_H = 30, 30
 ENEMY_W,  ENEMY_H  = 30, 30
 
@@ -85,15 +91,62 @@ pattern1 = [
 
 pattern2 = [
     {"time": 60,   "x": 0},
-    {"time": 70,  "x": 225},
-    {"time": 80,  "x": 450},
-    {"time": 90,  "x": 170},
-    {"time": 100,  "x": 395},
-    {"time": 180, "x": 620},
-    {"time": 300, "x": -50},
-    {"time": 300, "x": 200},
-    {"time": 300, "x": 450},
-    {"time": 300, "x": 700},
+    {"time": 70,  "x": 0},
+    {"time": 80,  "x": 0},
+    {"time": 90,  "x": 0},
+    {"time": 100,  "x": 0},
+    {"time": 110, "x": 0},
+    {"time": 120, "x": 0},
+    {"time": 130, "x": 0},
+    {"time": 250, "x": 0},
+    {"time": 270, "x": 0},
+    {"time": 290, "x": 0},
+    {"time": 310, "x": 0},
+    {"time": 380, "x": 0},
+    {"time": 385, "x": 0},
+    {"time": 390, "x": 0},
+    {"time": 395, "x": 0},
+    {"time": 400, "x": 0},
+    {"time": 405, "x": 0},
+    {"time": 410, "x": 0},
+    {"time": 415, "x": 0},
+    {"time": 420, "x": 0},
+    {"time": 425, "x": 0},
+    {"time": 430, "x": 0},
+    {"time": 435, "x": 0},
+    {"time": 440, "x": 0},
+    {"time": 445, "x": 0},
+    {"time": 450, "x": 0},
+    {"time": 455, "x": 0},
+    {"time": 460, "x": 0},
+    {"time": 465, "x": 0},
+    {"time": 470, "x": 0},
+]
+
+pattern3 = [
+    {"time": 60,   "x": 0},
+    {"time": 70,  "x": 120},
+    {"time": 80,  "x": 240},
+    {"time": 90,  "x": 360},
+    {"time": 100,  "x": 480},
+    {"time": 120, "x": 620},
+    {"time": 160, "x": 640},
+    {"time": 170, "x": 520},
+    {"time": 180, "x": 400},
+    {"time": 190, "x": 280},
+    {"time": 200, "x": 160},
+    {"time": 220, "x": 20},
+    {"time": 260, "x": 0},
+    {"time": 260, "x": 170},
+    {"time": 260, "x": 340},
+    {"time": 260, "x": 510},
+    {"time": 260, "x": 680},
+    {"time": 290, "x": -85},
+    {"time": 290, "x": 85},
+    {"time": 290, "x": 255},
+    {"time": 290, "x": 425},
+    {"time": 290, "x": 595},
+    {"time": 290, "x": 765},
 ]
 
 
@@ -110,20 +163,16 @@ spawned_set = set()
 
 
 def get_spawn_delay(score):
-    if score >= 2001:
+    if score >= 1001:
         return 5
-    elif score >= 1001:
-        return 6
     elif score >= 701:
         return 8
-    elif score >= 401:
+    elif score >= 301:
         return 10
-    elif score >= 201:
+    elif score >= 101:
         return 12
-    elif score >= 51:
-        return 14
     else:
-        return 16
+        return 14
 
 # ===============================
 # ===== 패턴 스폰 =====
@@ -164,42 +213,60 @@ def spawn_pattern_warning(pattern, frame, speed, player):
 
     return spawned
 
+def spawn_pattern_wide(pattern, frame, speed):
+    spawned = []
+    global spawned_set
+
+    for i, p in enumerate(pattern):
+        if i in spawned_set:
+            continue
+
+        if p["time"] <= frame:
+            w = ENEMY_W * 4
+            h = ENEMY_H
+            rect = pygame.Rect(p["x"], -h, w, h)
+
+            spawned.append([rect, speed, "wide"])
+            spawned_set.add(i)
+
+    return spawned
+
 def spawn_enemy(score):
     rand = random.random()
 
     # ===== 확률 설정 =====
-    if score <= 51:
+    if score <= 100:
         big_prob = 0
     elif score <= 1000:
         big_prob = 0.06
     else:
         big_prob = 0.07
 
-    if score <= 200:
+    if score <= 300:
         fast_prob = 0
     elif score <= 1000:
         fast_prob = 0.08
     else:
         fast_prob = 0.10
 
-    heal_prob = 0 if score < 400 else 0.03
+    heal_prob = 0 if score < 300 else 0.03
 
-    if score <= 500:
+    if score <= 701:
         wide_prob = 0
     elif score <= 1000:
         wide_prob = 0.06
     else:
         wide_prob = 0.07
 
-    giant_prob = 0 if score <= 1000 else 0.02
+    giant_prob = 0 if score <= 1000 else 0.01
 
     cumulative = 0
 
     # ===== 보스 =====
     cumulative += giant_prob
     if rand < cumulative:
-        w = ENEMY_W * 8
-        h = ENEMY_H * 8
+        w = ENEMY_W * 6
+        h = ENEMY_H * 6
         speed = int(random.randint(MIN_SPEED, MAX_SPEED) * 0.3)
         return pygame.Rect(random.randint(0, WIDTH - w), -h, w, h), speed, "giant"
 
@@ -344,6 +411,8 @@ def draw_pattern_title(pattern_type):
         text = "Big Big Big"
     elif pattern_type == 2:
         text = "WARNING!!"
+    elif pattern_type == 3:
+        text = "STAIR!!"
 
     size = int(72 * pattern_scale)
     temp_font = get_korean_font(size)
@@ -380,17 +449,23 @@ def run_game():
         clock.tick(FPS)
 
         if not force_pattern and not pattern_mode:
-            if score >= 50 and 1 not in completed_patterns:
+            if score >= 100 and 1 not in completed_patterns:
                 pattern_mode = True
                 pattern_timer = 0
                 pattern_phase = 0
                 pattern_type = 1
 
-            elif score >= 200 and 2 not in completed_patterns:
+            elif score >= 300 and 2 not in completed_patterns:
                 pattern_mode = True
                 pattern_timer = 0
                 pattern_phase = 0
                 pattern_type = 2
+
+            elif score >= 700 and 3 not in completed_patterns:
+                pattern_mode = True
+                pattern_timer = 0
+                pattern_phase = 0
+                pattern_type = 3
 
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
@@ -398,25 +473,21 @@ def run_game():
 
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_1:
-                    score = 50
+                    score = 100
                     selected_pattern = 1
                     force_pattern = True
                 if e.key == pygame.K_2:
-                    score = 200
+                    score = 300
                     selected_pattern = 2
                     force_pattern = True
                 if e.key == pygame.K_3:
-                    score = 400   
+                    score = 700   
                     selected_pattern = 3
                     force_pattern = True
                 if e.key == pygame.K_4:
-                    score = 700
+                    score = 1000
                     selected_pattern = 4
                     force_pattern = True
-                if e.key == pygame.K_5:
-                    score = 1000        
-                    selected_pattern = 5 
-                    force_pattern = True 
 
         if force_pattern and not pattern_mode:
             pattern_mode = True
@@ -477,11 +548,15 @@ def run_game():
             elif pattern_phase == 4:
 
                 if pattern_type == 1:
-                    pattern_speed = 8 if score < 2000 else 10
+                    pattern_speed = 8 if score < 1000 else 10
                     new_blocks = spawn_pattern_big(pattern1, pattern_timer, pattern_speed)
 
                 elif pattern_type == 2:
                     new_blocks = spawn_pattern_warning(pattern2, pattern_timer, 40, player)
+
+                elif pattern_type == 3:
+                    pattern_speed = 7 if score < 1000 else 10
+                    new_blocks = spawn_pattern_wide(pattern3, pattern_timer, pattern_speed)
 
                 enemies.extend(new_blocks)
 
@@ -595,6 +670,15 @@ def run_game():
 
             elif etype == "heal":
                 screen.blit(prob_heal_img, draw_rect)
+
+            elif etype == "wide":
+                screen.blit(prob_wide_img, draw_rect)
+
+            elif etype == "giant":
+                screen.blit(prob_giant_img, draw_rect)
+
+            elif etype == "pattern_big":
+                screen.blit(prob_giant_img, draw_rect)
 
             elif etype == "fast_warning":
                 warning = pygame.Surface((rect.width, HEIGHT), pygame.SRCALPHA)
