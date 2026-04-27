@@ -48,6 +48,18 @@ pygame.mixer.music.load("week7/bgm.mp3")
 pygame.mixer.music.set_volume(0.2)
 pygame.mixer.music.play(-1)
 
+heal_sounds = [
+    pygame.mixer.Sound("week7\heal1.wav"),
+    pygame.mixer.Sound("week7\heal2.wav"),
+    pygame.mixer.Sound("week7\heal3.wav"),
+]
+
+hit_sound = pygame.mixer.Sound("week7\hit.wav")
+hit_sound.set_volume(0.4)
+
+for s in heal_sounds:
+    s.set_volume(0.2)
+
 prob_img = pygame.image.load("week7\prob.png").convert_alpha()
 prob_img = pygame.transform.scale(prob_img, (30, 30))
 
@@ -65,6 +77,9 @@ prob_wide_img = pygame.transform.scale(prob_wide_img, (120, 30))
 
 prob_giant_img = pygame.image.load("week7\giant.png").convert_alpha()
 prob_giant_img = pygame.transform.scale(prob_giant_img, (180, 180))
+
+prob_boss_img = pygame.image.load("week7\prob_boss.png").convert_alpha()
+prob_boss_img = pygame.transform.scale(prob_boss_img, (720, 720))
 
 PLAYER_W, PLAYER_H = 30, 30
 ENEMY_W,  ENEMY_H  = 30, 30
@@ -136,17 +151,21 @@ pattern3 = [
     {"time": 190, "x": 280},
     {"time": 200, "x": 160},
     {"time": 220, "x": 20},
-    {"time": 260, "x": 0},
-    {"time": 260, "x": 170},
+    {"time": 260, "x": -20},
+    {"time": 260, "x": 160},
     {"time": 260, "x": 340},
-    {"time": 260, "x": 510},
-    {"time": 260, "x": 680},
+    {"time": 260, "x": 520},
+    {"time": 260, "x": 700},
     {"time": 290, "x": -85},
     {"time": 290, "x": 85},
     {"time": 290, "x": 255},
     {"time": 290, "x": 425},
     {"time": 290, "x": 595},
     {"time": 290, "x": 765},
+]
+
+pattern4 = [
+    {"time": 100,   "x": 35},
 ]
 
 
@@ -208,7 +227,7 @@ def spawn_pattern_warning(pattern, frame, speed, player):
             x = player.centerx - w // 2
             rect = pygame.Rect(x, 0, w, HEIGHT)
 
-            spawned.append([rect, speed, "fast_warning"])
+            spawned.append([rect, speed, "pattern_fast_warning"])
             spawned_set.add(i)
 
     return spawned
@@ -226,7 +245,25 @@ def spawn_pattern_wide(pattern, frame, speed):
             h = ENEMY_H
             rect = pygame.Rect(p["x"], -h, w, h)
 
-            spawned.append([rect, speed, "wide"])
+            spawned.append([rect, speed, "pattern_wide"])
+            spawned_set.add(i)
+
+    return spawned
+
+def spawn_pattern_boss(pattern, frame, speed):
+    spawned = []
+    global spawned_set
+
+    for i, p in enumerate(pattern):
+        if i in spawned_set:
+            continue
+
+        if p["time"] <= frame:
+            w = ENEMY_W * 24
+            h = ENEMY_H * 24
+            rect = pygame.Rect(p["x"], -h, w, h)
+
+            spawned.append([rect, speed, "pattern_boss"])
             spawned_set.add(i)
 
     return spawned
@@ -262,7 +299,7 @@ def spawn_enemy(score):
 
     cumulative = 0
 
-    # ===== 보스 =====
+    # ===== 거인 =====
     cumulative += giant_prob
     if rand < cumulative:
         w = ENEMY_W * 6
@@ -318,6 +355,7 @@ def draw_hud(score, lives):
 def game_over_screen(score):
     global start_rect, quit_rect
     global retry_rect, menu_rect
+    pygame.mixer.music.set_volume(0.08)
 
     while True:
         clock.tick(FPS)
@@ -407,12 +445,16 @@ def pattern1_update():
 def draw_pattern_title(pattern_type):
     global pattern_scale, pattern_alpha
 
+    text = ""
+
     if pattern_type == 1:
         text = "Big Big Big"
     elif pattern_type == 2:
         text = "WARNING!!"
     elif pattern_type == 3:
         text = "STAIR!!"
+    elif pattern_type == 4:
+        text = "JUST DIE!!"
 
     size = int(72 * pattern_scale)
     temp_font = get_korean_font(size)
@@ -444,9 +486,19 @@ def run_game():
     invincible = 0
     selected_pattern = None
     force_pattern = False
+    last_pattern_trigger_score = 0
+    pattern_mode = False
+    pattern_phase = 0
+    pattern_timer = 0
+    pattern_scale = 1.0
+    pattern_alpha = 0
+    pattern_type = 0
 
     while True:
         clock.tick(FPS)
+
+        if not pattern_mode:
+            pattern_type = 0
 
         if not force_pattern and not pattern_mode:
             if score >= 100 and 1 not in completed_patterns:
@@ -466,6 +518,21 @@ def run_game():
                 pattern_timer = 0
                 pattern_phase = 0
                 pattern_type = 3
+
+            elif score >= 1000 and 4 not in completed_patterns:
+                pattern_mode = True
+                pattern_timer = 0
+                pattern_phase = 0
+                pattern_type = 4
+
+            elif score > 1000:
+                if score - last_pattern_trigger_score >= 300:
+                    pattern_mode = True
+                    pattern_timer = 0
+                    pattern_phase = 0
+                    pattern_type = random.randint(1, 4)
+
+                    last_pattern_trigger_score = score
 
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
@@ -547,6 +614,8 @@ def run_game():
 
             elif pattern_phase == 4:
 
+                new_blocks = []
+
                 if pattern_type == 1:
                     pattern_speed = 8 if score < 1000 else 10
                     new_blocks = spawn_pattern_big(pattern1, pattern_timer, pattern_speed)
@@ -557,6 +626,10 @@ def run_game():
                 elif pattern_type == 3:
                     pattern_speed = 7 if score < 1000 else 10
                     new_blocks = spawn_pattern_wide(pattern3, pattern_timer, pattern_speed)
+
+                elif pattern_type == 4:
+                    pattern_speed = 4 if score < 1200 else 16
+                    new_blocks = spawn_pattern_boss(pattern4, pattern_timer, pattern_speed)
 
                 enemies.extend(new_blocks)
 
@@ -572,6 +645,8 @@ def run_game():
                 pattern_alpha = 0
                 completed_patterns.add(pattern_type)
 
+                pattern_phase = 0
+                pattern_type = 0
                 pattern_mode = False
                 spawned_set.clear()
                 force_pattern = False
@@ -581,7 +656,7 @@ def run_game():
         for rect, speed, etype in enemies:
 
             # ===== fast 예고 =====
-            if etype == "fast_warning":
+            if etype in ("fast_warning", "pattern_fast_warning"):
                 speed -= 1
 
                 if speed <= 0:
@@ -591,9 +666,13 @@ def run_game():
                     new_rect = pygame.Rect(rect.x, -h, w, h)
                     new_speed = FAST_SPEED
 
-                    survived.append([new_rect, new_speed, "fast"])
+                    if etype == "pattern_fast_warning":
+                        survived.append([new_rect, new_speed, "pattern_fast"])
+                    else:
+                        survived.append([new_rect, new_speed, "fast"])
                 else:
                     survived.append([rect, speed, etype])
+
                 continue
 
             # ===== 일반 이동 =====
@@ -611,13 +690,25 @@ def run_game():
             for enemy in enemies[:]:
                 rect, speed, etype = enemy
 
-                if etype == "fast_warning":
+                if etype in ("fast_warning", "pattern_fast_warning"):
                     continue
 
                 if player.colliderect(rect):
 
                     # ===== 패턴 박스 =====
                     if etype == "pattern_big":
+                        last_score = score
+                        return "gameover"
+                    
+                    elif etype == "pattern_fast":
+                        last_score = score
+                        return "gameover"
+                    
+                    elif etype == "pattern_wide":
+                        last_score = score
+                        return "gameover"
+                    
+                    elif etype == "pattern_boss":
                         last_score = score
                         return "gameover"
 
@@ -628,6 +719,7 @@ def run_game():
 
                     # ===== 회복 =====
                     elif etype == "heal":
+                        random.choice(heal_sounds).play()
                         if lives < 3:
                             lives += 1
                         else:
@@ -636,6 +728,7 @@ def run_game():
 
                     # ===== 일반 적 =====
                     else:
+                        hit_sound.play()    
                         lives -= 1
                         invincible = 90   # ← 예전처럼 깜빡 시간
 
@@ -680,7 +773,21 @@ def run_game():
             elif etype == "pattern_big":
                 screen.blit(prob_giant_img, draw_rect)
 
+            elif etype == "pattern_fast":
+                screen.blit(prob_fast_img, draw_rect)
+
+            elif etype == "pattern_wide":
+                screen.blit(prob_wide_img, draw_rect)
+
+            elif etype == "pattern_boss":
+                screen.blit(prob_boss_img, draw_rect)
+
             elif etype == "fast_warning":
+                warning = pygame.Surface((rect.width, HEIGHT), pygame.SRCALPHA)
+                warning.fill((255, 0, 0, 100))
+                screen.blit(warning, (draw_rect.x, 0))
+
+            elif etype == "pattern_fast_warning":
                 warning = pygame.Surface((rect.width, HEIGHT), pygame.SRCALPHA)
                 warning.fill((255, 0, 0, 100))
                 screen.blit(warning, (draw_rect.x, 0))
@@ -705,6 +812,7 @@ def main():
             result = menu_screen()
             if result == "start":
                 game_state = STATE_GAME
+                pygame.mixer.music.set_volume(0.2)
 
         # ===== 게임 =====
         elif game_state == STATE_GAME:
@@ -718,8 +826,10 @@ def main():
 
             if result == "retry":
                 game_state = STATE_GAME
+                pygame.mixer.music.set_volume(0.2)
             elif result == "menu":
                 game_state = STATE_MENU
+                pygame.mixer.music.set_volume(0.2)
 
 
 main()
