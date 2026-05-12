@@ -1,8 +1,17 @@
 import pygame
 import random
+import os
 import sys
 
 pygame.init()
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 def get_korean_font(size):
     candidates = ["malgungothic", "applegothic", "nanumgothic", "notosanscjk"]
@@ -44,41 +53,41 @@ font = get_korean_font(36)
 font_big = get_korean_font(72)
 
 pygame.mixer.init()
-pygame.mixer.music.load("week7/bgm.mp3")
+pygame.mixer.music.load(resource_path("week7/assets/bgm.mp3"))
 pygame.mixer.music.set_volume(0.2)
 pygame.mixer.music.play(-1)
 
 heal_sounds = [
-    pygame.mixer.Sound("week7\heal1.wav"),
-    pygame.mixer.Sound("week7\heal2.wav"),
-    pygame.mixer.Sound("week7\heal3.wav"),
+    pygame.mixer.Sound(resource_path("week7/assets/heal1.wav")),
+    pygame.mixer.Sound(resource_path("week7/assets/heal2.wav")),
+    pygame.mixer.Sound(resource_path("week7/assets/heal3.wav")),
 ]
 
-hit_sound = pygame.mixer.Sound("week7\hit.wav")
+hit_sound = pygame.mixer.Sound(resource_path("week7/assets/hit.wav"))
 hit_sound.set_volume(0.4)
 
 for s in heal_sounds:
     s.set_volume(0.2)
 
-prob_img = pygame.image.load("week7\prob.png").convert_alpha()
+prob_img = pygame.image.load(resource_path("week7/assets/prob.png")).convert_alpha()
 prob_img = pygame.transform.scale(prob_img, (30, 30))
 
-prob_big_img = pygame.image.load("week7\prob_big.png").convert_alpha()
+prob_big_img = pygame.image.load(resource_path("week7/assets/prob_big.png")).convert_alpha()
 prob_big_img = pygame.transform.scale(prob_big_img, (120, 120))
 
-prob_fast_img = pygame.image.load("week7\prob_fast.png").convert_alpha()
+prob_fast_img = pygame.image.load(resource_path("week7/assets/prob_fast.png")).convert_alpha()
 prob_fast_img = pygame.transform.scale(prob_fast_img, (18, 18))
 
-prob_heal_img = pygame.image.load("week7\prob_heal.png").convert_alpha()
+prob_heal_img = pygame.image.load(resource_path("week7/assets/prob_heal.png")).convert_alpha()
 prob_heal_img = pygame.transform.scale(prob_heal_img, (30, 30))
 
-prob_wide_img = pygame.image.load("week7\wide.png").convert_alpha()
+prob_wide_img = pygame.image.load(resource_path("week7/assets/wide.png")).convert_alpha()
 prob_wide_img = pygame.transform.scale(prob_wide_img, (120, 30))
 
-prob_giant_img = pygame.image.load("week7\giant.png").convert_alpha()
+prob_giant_img = pygame.image.load(resource_path("week7/assets/giant.png")).convert_alpha()
 prob_giant_img = pygame.transform.scale(prob_giant_img, (180, 180))
 
-prob_boss_img = pygame.image.load("week7\prob_boss.png").convert_alpha()
+prob_boss_img = pygame.image.load(resource_path("week7/assets/prob_boss.png")).convert_alpha()
 prob_boss_img = pygame.transform.scale(prob_boss_img, (720, 720))
 
 PLAYER_W, PLAYER_H = 30, 30
