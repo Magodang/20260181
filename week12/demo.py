@@ -314,7 +314,6 @@ while running:
         )
     )
 
-    # 그림자
     shadow_rect = pygame.Rect(
         player.x - camera_x + 5,
         player.bottom - 8,
