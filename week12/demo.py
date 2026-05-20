@@ -130,7 +130,14 @@ enemies = [
         "animations": enemy1_animations,
         "current_animation": "idle",
         "frame_index": 0,
-        "animation_speed": 0.05
+        "animation_speed": 0.05,
+        "speed" : 2,
+        "direction":1,
+        "start_x" : 750,
+        "patrol_range":200,
+        "detect_range":400,
+        "aggro":False,
+        "chase_range":700,
     }
 ]
 
@@ -171,6 +178,39 @@ while running:
         ]
         if enemy["frame_index"] >= len(animation):
             enemy["frame_index"] = 0
+
+    # =========================
+    # 적 AI
+    # =========================
+    for enemy in enemies:
+        enemy_rect = enemy["rect"]
+        distance_x = player.centerx - enemy_rect.centerx
+
+        # 플레이어 인식
+        if abs(distance_x) < enemy["detect_range"]:
+            enemy["aggro"] = True
+        # 추적 종료
+        elif abs(distance_x) > enemy["chase_range"]:
+            enemy["aggro"] = False
+
+        # 추적 상태
+        if enemy["aggro"]:
+            if distance_x > 0:
+                enemy_rect.x += enemy["speed"]
+                enemy["direction"] = 1
+            elif distance_x < 0:
+                enemy_rect.x -= enemy["speed"]
+                enemy["direction"] = -1
+        
+        else:
+            # 기본 배회 이동
+            enemy_rect.x += enemy["speed"] * enemy["direction"]
+            # 범위 제한
+            if enemy_rect.x < enemy["start_x"] - enemy["patrol_range"]:
+                enemy["direction"] = 1
+            if enemy_rect.x > enemy["start_x"] + enemy["patrol_range"]:
+                enemy["direction"] = -1
+
 
     # =====================
     # 이벤트 처리
@@ -345,9 +385,6 @@ while running:
     if camera_x > WORLD_WIDTH - WIDTH:
         camera_x = WORLD_WIDTH - WIDTH
 
-    if camera_y < 0:
-        camera_y = 0
-
     # =====================
     # 렌더링
     # =====================
@@ -403,6 +440,13 @@ while running:
         image = animation[
             int(enemy["frame_index"])
         ]
+
+        if enemy["direction"] == 1:
+            image = pygame.transform.flip(
+                image,
+                True,
+                False
+            )
 
         screen.blit(
             image,
