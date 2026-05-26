@@ -437,7 +437,7 @@ while running:
                     if enemy["velocity_y"] > 0:
                         enemy_rect.bottom = ground.top
 
-                    elif enemy[""]
+                    elif enemy["d"]
 
     # =====================
     # 이벤트 처리
