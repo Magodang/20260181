@@ -103,6 +103,22 @@ enemy1_animations = {
     )
 }
 
+enemy2_sheet = SpriteSheet(
+    "week12/assets/en2.png"
+)
+
+enemy2_animations = {
+
+    "idle": load_animation(
+
+        enemy2_sheet,
+        250,
+        220,
+        2,
+        scale=0.4
+    )
+}
+
 # 플랫폼
 platforms = [
     pygame.Rect(300, 560, 200, 20),
@@ -122,23 +138,50 @@ walls = [
     pygame.Rect(2100, HEIGHT - 250, 100, 170),
 ]
 
-# 적
-enemies = [
+def enemy1(x, y):
 
-    {
-        "rect": pygame.Rect(750, HEIGHT - 300, 125, 110),
+    return {
+        "type": "enemy1",
+        "rect": pygame.Rect(x, y, 125, 110),
         "animations": enemy1_animations,
         "current_animation": "idle",
         "frame_index": 0,
         "animation_speed": 0.05,
-        "speed" : 2,
-        "direction":1,
-        "start_x" : 750,
-        "patrol_range":200,
-        "detect_range":400,
-        "aggro":False,
-        "chase_range":700,
+        "speed": 2,
+        "direction": 1,
+        "start_x": x,
+        "patrol_range": 200,
+        "detect_range": 400,
+        "aggro": False,
+        "chase_range": 700,
     }
+
+def enemy2(x, y):
+
+    return {
+        "type": "enemy2",
+        "rect": pygame.Rect(x, y, 125, 110),
+        "animations": enemy2_animations,
+        "current_animation": "idle",
+        "frame_index": 0,
+        "animation_speed": 0.08,
+        "speed":3,
+        "direction": 1,
+        "start_x": x,
+        "patrol_range": 350,
+        "detect_range": 700,
+        "aggro": False,
+        "chase_range": 1200,
+    }
+
+# 적
+enemies = [
+
+        enemy1(750, HEIGHT - 300),
+        enemy1(1400, HEIGHT - 300),
+        enemy1(2200, HEIGHT - 300),
+        enemy2(1600, HEIGHT - 300),
+
 ]
 
 player = pygame.Rect(100, HEIGHT - 200, 40, 60)
