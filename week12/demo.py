@@ -87,7 +87,7 @@ WALL_COLOR = (130, 130, 130)
 PLAYER_COLOR = (220, 220, 220)
 ENEMY_COLOR = (170, 170, 170)
 
-WORLD_WIDTH = 4000
+WORLD_WIDTH = 16000
 
 ground = pygame.Rect(0, HEIGHT - 80, WORLD_WIDTH, 80)
 
@@ -103,9 +103,7 @@ enemy1_animations = {
     )
 }
 
-enemy2_sheet = SpriteSheet(
-    "week12/assets/en2.png"
-)
+enemy2_sheet = SpriteSheet("week12/assets/en2.png")
 
 enemy2_animations = {
 
@@ -122,26 +120,19 @@ enemy2_animations = {
 # 플랫폼
 platforms = [
     pygame.Rect(300, 560, 200, 20),
-    pygame.Rect(650, 470, 180, 20),
-    pygame.Rect(980, 380, 220, 20),
-    pygame.Rect(1400, 500, 250, 20),
-    pygame.Rect(1800, 420, 180, 20),
-    pygame.Rect(2200, 320, 220, 20),
-    pygame.Rect(2600, 450, 300, 20),
-    pygame.Rect(3200, 350, 200, 20),
 ]
 
 # 벽
 walls = [
-    pygame.Rect(500, 520, 80, 120),
-    pygame.Rect(1200, 520, 120, 220),
-    pygame.Rect(2100, 520, 100, 170),
+    pygame.Rect(1300, 570, 70, 70),
+    pygame.Rect(2300, 320, 250, 320),
+    pygame.Rect(2460, 520, 400, 120),
 ]
 
 def enemy1(x, y):
 
     collision_rect = pygame.Rect(
-        x-20,
+        x - 20,
         y + 10,
         70,
         70,
@@ -164,6 +155,7 @@ def enemy1(x, y):
         "current_animation": "idle",
         "frame_index": 0,
         "animation_speed": 0.05,
+        "health": 20,
         "speed": 2,
         "damage": 20,
         "direction": 1,
@@ -172,6 +164,7 @@ def enemy1(x, y):
         "detect_range": 400,
         "aggro": False,
         "chase_range": 700,
+        "vel_x": 0,
         "vel_y": 0,
         "gravity": 0.35,
         "on_ground": False,
@@ -203,6 +196,7 @@ def enemy2(x, y):
         "current_animation": "idle",
         "frame_index": 0,
         "animation_speed": 0.04,
+        "health": 10,
         "speed":3,
         "damage": 20,
         "direction": 1,
@@ -218,10 +212,8 @@ def enemy2(x, y):
 # 적
 enemies = [
 
-        enemy1(750, HEIGHT - 300),
-        enemy1(1400, HEIGHT - 300),
-        enemy1(2200, HEIGHT - 300),
-        enemy2(1600, HEIGHT - 300),
+        enemy1(1550, 550),
+        enemy2(1700, 200),
 
 ]
 
@@ -229,8 +221,8 @@ player = pygame.Rect(100, HEIGHT - 200, 60, 100)
 
 vel_y = 0
 
-move_speed = 6
-jump_power = -16
+move_speed = 8
+jump_power = -20
 gravity = 0.8
 on_ground = False
 extra_jumps = 1
@@ -245,6 +237,16 @@ camera_y = 0
 
 player_health = 100
 player_max_health = 100
+player_attack_damage = 10
+player_facing = 1
+attack_cd = 0
+attack_duration = 2
+attack_timer = 0
+attack_hitbox = None
+
+hit_enemies = []
+
+air_attack_used = False
 
 player_invincible = 0
 player_hitstun = 0
@@ -312,8 +314,15 @@ while running:
         if enemy["type"] == "enemy1":
 
             # -----------------
+            # X 이동
+            # -----------------
+            enemy_rect.x += enemy["vel_x"]
+
+            # -----------------
             # 중력
             # -----------------
+            previous_bottom = enemy_rect.bottom
+
             enemy["vel_y"] += enemy["gravity"]
             enemy_rect.y += enemy["vel_y"]
             enemy["on_ground"] = False
@@ -321,13 +330,16 @@ while running:
             # -----------------
             # 바닥 충돌
             # -----------------
-            all_surfaces = [ground] + platforms
+            all_surfaces = [ground] + platforms + walls
 
             for surface in all_surfaces:
 
                 if enemy_rect.colliderect(surface):
 
-                    if enemy["vel_y"] >= 0:
+                    if (
+                        previous_bottom <= surface.top
+                        and enemy["vel_y"] >= 0
+                    ):
                         enemy_rect.bottom = surface.top
                         enemy["vel_y"] = 0
                         enemy["on_ground"] = True
@@ -339,23 +351,43 @@ while running:
 
                 if enemy_rect.colliderect(wall):
 
-                    if enemy["direction"] == 1:
+                    if enemy["vel_x"] > 0:
                         enemy_rect.right = wall.left
 
-                    else:
+                    elif enemy["vel_x"] < 0:
                         enemy_rect.left = wall.right
 
             # -----------------
             # 추적
             # -----------------
+            enemy["vel_x"] = 0
+
             if enemy["aggro"]:
 
                 if distance_x > 0:
-                    enemy_rect.x += enemy["speed"]
+                    enemy["vel_x"] = enemy["speed"]
                     enemy["direction"] = 1
 
                 elif distance_x < 0:
-                    enemy_rect.x -= enemy["speed"]
+                    enemy["vel_x"] = -enemy["speed"]
+                    enemy["direction"] = -1
+
+            else:
+                enemy["vel_x"] = (
+                    enemy["speed"]
+                    * enemy["direction"]
+                )
+
+                if enemy_rect.x < (
+                    enemy["start_x"]
+                    - enemy["patrol_range"]
+                ):
+                    enemy["direction"] = 1
+                
+                if enemy_rect.x > (
+                    enemy["start_x"]
+                    + enemy["patrol_range"]
+                ):
                     enemy["direction"] = -1
 
         # =====================
@@ -401,6 +433,12 @@ while running:
                 enemy_rect.x += enemy["velocity_x"]
                 enemy_rect.y += enemy["velocity_y"]
 
+                if enemy_rect.collidderect(ground):
+                    if enemy["velocity_y"] > 0:
+                        enemy_rect.bottom = ground.top
+
+                    elif enemy[""]
+
     # =====================
     # 이벤트 처리
     # =====================
@@ -422,6 +460,58 @@ while running:
                 input_buffer = "jump"
                 input_buffer_timer = input_buffer_time
 
+            if event.key == pygame.K_o and player_hitstun <= 0:
+
+                if attack_cd <= 0:
+
+                    # =====================
+                    # 공중 공격
+                    # =====================
+                    if not on_ground and not air_attack_used:
+
+                        attack_timer = 8
+                        attack_cd = 20
+
+                        hit_enemies = []
+
+                        vel_y = -12
+
+                        attack_hitbox = pygame.Rect(
+                            player.centerx - 140,
+                            player.centery - 140,
+                            280,
+                            280,
+                        )
+                        air_attack_used = True
+
+                    # =====================
+                    # 일반 공격
+                    # =====================
+                    elif on_ground:
+
+                        attack_timer = attack_duration
+                        attack_cd = 8
+
+                        hit_enemies = []
+
+                        attack_width = 160
+                        attack_height = 90
+
+                        if player_facing == 1:
+                            attack_hitbox = pygame.Rect(
+                                player.right,
+                                player.y + 10,
+                                attack_width,
+                                attack_height,
+                            )
+                        else:
+                            attack_hitbox = pygame.Rect(
+                                player.x - attack_width,
+                                player.y + 10,
+                                attack_width,
+                                attack_height,
+                        )
+
     # =====================
     # 플레이어 피격 판정
     # =====================
@@ -432,9 +522,17 @@ while running:
     if player_hitstun > 0:
         player_hitstun -= 1
 
+    if attack_cd > 0:
+        attack_cd -= 1
+    
+    if attack_timer > 0:
+        attack_timer -= 1
+    else:
+        attack_hitbox = None
+
     for enemy in enemies:
 
-        if player.colliderect(enemy["hurtbox"]):
+        if player.colliderect(enemy["rect"]):
 
             if player_invincible <= 0:
 
@@ -442,13 +540,53 @@ while running:
                 player_health -= enemy["damage"]
 
                 # 무적 시간
-                player_invincible = 120
+                player_invincible = 100
 
                 # 경직
                 player_hitstun = 45
 
             if player_health < 0:
                 player_health = 0
+    
+    # =====================
+    # 플레이어 피격 판정
+    # =====================
+
+    if attack_hitbox:
+
+        for enemy in enemies:
+
+            if enemy not in hit_enemies:
+
+                if attack_hitbox.colliderect(
+                    enemy["hurtbox"]
+                ):
+                    enemy["health"] -= (
+                        player_attack_damage
+                    )
+
+                    knockback_power = 35
+
+                    if player.centerx < enemy["rect"].centerx:
+                        enemy["rect"].x += knockback_power
+                        
+                        for wall in walls:
+                            if enemy["rect"].colliderect(wall):
+                                enemy["rect"].right = wall.left
+                    else:
+                        enemy["rect"].x -= knockback_power
+                        
+                        for wall in walls:
+                            if enemy["rect"].colliderect(wall):
+                                enemy["rect"].left = wall.right
+
+                    hit_enemies.append(enemy)
+        # 체력 0 이하 적 제거
+        enemies = [
+            enemy
+            for enemy in enemies
+            if enemy["health"] > 0
+        ]
 
     # =====================
     # 입력 처리
@@ -458,11 +596,13 @@ while running:
     dx = 0
 
     if player_hitstun <= 0:
-        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+        if keys[pygame.K_a]:
             dx = -move_speed
+            player_facing = -1
         
-        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+        if keys[pygame.K_d]:
             dx = move_speed
+            player_facing = 1
 
     # =====================
     # X 이동
@@ -542,7 +682,7 @@ while running:
     # =====================
     # 플랫폼 충돌
     # =====================
-    all_surfaces = [ground] + platforms
+    all_surfaces = [ground] + platforms + walls
 
     for surface in all_surfaces:
 
@@ -552,14 +692,11 @@ while running:
             if previous_bottom <= surface.top and vel_y >= 0:
 
                 player.bottom = surface.top
-
                 vel_y = 0
-
                 on_ground = True
-
                 extra_jumps = 1
-
                 coyote_timer = coyote_time
+                air_attack_used = False
 
     # =====================
     # 벽 Y 충돌
@@ -572,14 +709,11 @@ while running:
             if vel_y > 0:
 
                 player.bottom = wall.top
-
                 vel_y = 0
-
                 on_ground = True
-
                 extra_jumps = 1
-
                 coyote_timer = coyote_time
+                air_attack_used = False
 
             # 위로 점프 중
             elif vel_y < 0:
@@ -682,7 +816,7 @@ while running:
             )
         )
 
-            # 히트박스 보기
+        # 히트박스 보기
         pygame.draw.rect(
             screen,
             (255, 0, 0),
@@ -744,6 +878,20 @@ while running:
         shadow_rect
     )
 
+    # 플레이어 공격 히트박스
+    if attack_hitbox:
+        pygame.draw.rect(
+            screen,
+            (255, 0, 0),
+            (
+                attack_hitbox.x - camera_x,
+                attack_hitbox.y - camera_y,
+                attack_hitbox.width,
+                attack_hitbox.height
+            ),
+            2
+        )
+
     # =====================
     # 체력바 배경
     #=====================
@@ -751,7 +899,7 @@ while running:
     pygame.draw.rect(
         screen,
         (50, 50, 50),
-        (30, 30, 300, 30)
+        (30, 30, 600, 30)
     )
 
     # =====================
@@ -760,30 +908,25 @@ while running:
 
     health_width = int(
         (player_health / player_max_health)
-        *300
+        *600
     )
 
     health_width = max(
         0,
-        min(300, health_width)
+        min(600, health_width)
     )
 
     pygame.draw.rect(
         screen,
         (220, 40, 40),
-        (
-            30,
-            30,
-            health_width,
-            30
-        )
+        (30, 30, health_width, 30)
     )
 
     # 테두리
     pygame.draw.rect(
         screen,
         (255, 255, 255),
-        (30, 30, 300, 30),
+        (30, 30, 600, 30),
         2
     )
 
