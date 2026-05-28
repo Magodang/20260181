@@ -391,7 +391,7 @@ while running:
                     enemy["direction"] = -1
 
         # =====================
-        # enemy2
+        # enemy2 (수정된 충돌 로직)
         # =====================
         elif enemy["type"] == "enemy2":
 
@@ -418,7 +418,7 @@ while running:
                     target_vel_y = -enemy["speed"]
 
                 # -----------------
-                # 부드러운 이동
+                # 부드러운 이동 속도 계산
                 # -----------------
                 enemy["velocity_x"] += (
                     target_vel_x
@@ -430,15 +430,43 @@ while running:
                     - enemy["velocity_y"]
                 ) * 0.05
 
+                # -----------------
+                # 1. X축 이동 및 충돌 처리
+                # -----------------
                 enemy_rect.x += enemy["velocity_x"]
+
+                for wall in walls:
+                    if enemy_rect.colliderect(wall):
+                        if enemy["velocity_x"] > 0:
+                            enemy_rect.right = wall.left
+                        elif enemy["velocity_x"] < 0:
+                            enemy_rect.left = wall.right
+                        # 벽에 가로막혔으므로 X축 속도 초기화
+                        enemy["velocity_x"] = 0
+
+                # -----------------
+                # 2. Y축 이동 및 충돌 처리
+                # -----------------
                 enemy_rect.y += enemy["velocity_y"]
 
-                if enemy_rect.collidderect(ground):
+                # 바닥(ground) 충돌
+                if enemy_rect.colliderect(ground):
                     if enemy["velocity_y"] > 0:
                         enemy_rect.bottom = ground.top
+                    elif enemy["velocity_y"] < 0:
+                        enemy_rect.top = ground.bottom
+                    enemy["velocity_y"] = 0
 
-                    elif enemy["d"]
-
+                # 벽(wall) Y축 충돌
+                for wall in walls:
+                    if enemy_rect.colliderect(wall):
+                        if enemy["velocity_y"] > 0:
+                            enemy_rect.bottom = wall.top
+                        elif enemy["velocity_y"] < 0:
+                            enemy_rect.top = wall.bottom
+                        # 벽에 가로막혔으므로 Y축 속도 초기화
+                        enemy["velocity_y"] = 0
+                            
     # =====================
     # 이벤트 처리
     # =====================
