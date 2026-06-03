@@ -91,6 +91,29 @@ WORLD_WIDTH = 16000
 
 ground = pygame.Rect(0, HEIGHT - 80, WORLD_WIDTH, 80)
 
+player_idle_sheet = SpriteSheet("week12/assets/ryo_idle.png")
+
+player_run_sheet = SpriteSheet("week12/assets/ryo_run.png")
+
+player_animations = {
+
+    "idle": load_animation(
+        player_idle_sheet,
+        128,
+        128,
+        4,
+        scale=3.5
+    ),
+
+    "run": load_animation(
+        player_run_sheet,
+        128,
+        128,
+        8,
+        scale=3.5
+    )
+}
+
 enemy1_sheet = SpriteSheet("week12/assets/en1.png")
 
 enemy1_animations = {
@@ -217,7 +240,12 @@ enemies = [
 
 ]
 
-player = pygame.Rect(100, HEIGHT - 200, 60, 100)
+player_rect = pygame.Rect(100, HEIGHT - 200, 60, 100)
+player_hurtbox = pygame.Rect(0, 0, 380, 400)
+
+player_animation = "idle"
+player_frame_index = 0
+player_animation_speed = 0.15
 
 vel_y = 0
 
@@ -260,6 +288,12 @@ while running:
 
     dt = clock.tick(60)
 
+    player_frame_index += player_animation_speed
+    animation = player_animations[player_animation]
+
+    if player_frame_index >= len(animation):
+        player_frame_index = 0
+
     # =========================
     # 적 애니
     # =========================
@@ -279,12 +313,12 @@ while running:
         enemy_rect = enemy["rect"]
 
         distance_x = (
-            player.centerx
+            player_rect.centerx
             - enemy_rect.centerx
         )
 
         distance_y = (
-            player.centery
+            player_rect.centery
             - enemy_rect.centery
         )
 
@@ -505,8 +539,8 @@ while running:
                         vel_y = -12
 
                         attack_hitbox = pygame.Rect(
-                            player.centerx - 140,
-                            player.centery - 140,
+                            player_rect.centerx - 140,
+                            player_rect.centery - 140,
                             280,
                             280,
                         )
@@ -527,15 +561,15 @@ while running:
 
                         if player_facing == 1:
                             attack_hitbox = pygame.Rect(
-                                player.right,
-                                player.y + 10,
+                                player_rect.right,
+                                player_rect.y + 10,
                                 attack_width,
                                 attack_height,
                             )
                         else:
                             attack_hitbox = pygame.Rect(
-                                player.x - attack_width,
-                                player.y + 10,
+                                player_rect.x - attack_width,
+                                player_rect.y + 10,
                                 attack_width,
                                 attack_height,
                         )
@@ -560,7 +594,7 @@ while running:
 
     for enemy in enemies:
 
-        if player.colliderect(enemy["rect"]):
+        if player_hurtbox.colliderect(enemy["rect"]):
 
             if player_invincible <= 0:
 
@@ -595,7 +629,7 @@ while running:
 
                     knockback_power = 35
 
-                    if player.centerx < enemy["rect"].centerx:
+                    if player_rect.centerx < enemy["rect"].centerx:
                         enemy["rect"].x += knockback_power
                         
                         for wall in walls:
@@ -632,35 +666,41 @@ while running:
             dx = move_speed
             player_facing = 1
 
+        new_animation = "run" if dx != 0 else "idle"
+
+        if new_animation != player_animation:
+            player_animation = new_animation
+            player_frame_index = 0
+
     # =====================
     # X 이동
     # =====================
-    player.x += dx
+    player_rect.x += dx
 
     # 벽 X 충돌
     for wall in walls:
 
-        if player.colliderect(wall):
+        if player_rect.colliderect(wall):
 
             # 오른쪽 이동
             if dx > 0:
-                player.right = wall.left
+                player_rect.right = wall.left
 
             # 왼쪽 이동
             elif dx < 0:
-                player.left = wall.right
+                player_rect.left = wall.right
 
     # 월드 경계
-    if player.left < 0:
-        player.left = 0
+    if player_rect.left < 0:
+        player_rect.left = 0
 
-    if player.right > WORLD_WIDTH:
-        player.right = WORLD_WIDTH
+    if player_rect.right > WORLD_WIDTH:
+        player_rect.right = WORLD_WIDTH
 
     # =====================
     # Y 이동 준비
     # =====================
-    previous_bottom = player.bottom
+    previous_bottom = player_rect.bottom
 
     was_on_ground = on_ground
 
@@ -705,7 +745,7 @@ while running:
     vel_y += gravity
 
     # Y 이동
-    player.y += vel_y
+    player_rect.y += vel_y
 
     # =====================
     # 플랫폼 충돌
@@ -714,12 +754,12 @@ while running:
 
     for surface in all_surfaces:
 
-        if player.colliderect(surface):
+        if player_rect.colliderect(surface):
 
             # 위에서 떨어졌을 때만
             if previous_bottom <= surface.top and vel_y >= 0:
 
-                player.bottom = surface.top
+                player_rect.bottom = surface.top
                 vel_y = 0
                 on_ground = True
                 extra_jumps = 1
@@ -731,12 +771,12 @@ while running:
     # =====================
     for wall in walls:
 
-        if player.colliderect(wall):
+        if player_rect.colliderect(wall):
 
             # 떨어지는 중
             if vel_y > 0:
 
-                player.bottom = wall.top
+                player_rect.bottom = wall.top
                 vel_y = 0
                 on_ground = True
                 extra_jumps = 1
@@ -746,15 +786,21 @@ while running:
             # 위로 점프 중
             elif vel_y < 0:
 
-                player.top = wall.bottom
+                player_rect.top = wall.bottom
 
                 vel_y = 0
+
+    player_hurtbox.x = player_rect.x - 5
+    player_hurtbox.y = player_rect.y - 60
+
+    player_hurtbox.width = 50
+    player_hurtbox.height = 140
 
     # =====================
     # 카메라
     # =====================
-    target_x = player.centerx - WIDTH // 2
-    target_y = player.centery - HEIGHT // 2
+    target_x = player_rect.centerx - WIDTH // 2
+    target_y = player_rect.centery - HEIGHT // 2
 
     camera_x += (target_x - camera_x) * 0.1
     camera_y += (target_y - camera_y) * 0.1
@@ -870,14 +916,40 @@ while running:
         )
 
     # 플레이어
-    pygame.draw.rect(
-        screen,
-        PLAYER_COLOR,
+    player_image = player_animations[
+        player_animation
+    ][
+        int(player_frame_index)
+    ]
+    
+    if player_facing == -1:
+        player_image = pygame.transform.flip(
+            player_image,
+            True,
+            False
+        )
+
+    draw_x = (
+        player_rect.centerx
+        - player_image.get_width() // 2
+    )
+    draw_x += 20
+
+    draw_y = (
+        player_rect.bottom- player_image.get_height()
+    )
+    draw_y += 113
+
+    if player_facing == 1:
+        draw_x -= 60
+    elif player_facing == -1:
+        draw_x += 0
+
+    screen.blit(
+        player_image,
         (
-            player.x - camera_x,
-            player.y - camera_y,
-            player.width,
-            player.height
+            draw_x - camera_x,
+            draw_y - camera_y
         )
     )
 
@@ -885,18 +957,19 @@ while running:
         screen,
         (0, 255, 0),
         (
-            player.x - camera_x,
-            player.y - camera_y,
-            player.width,
-            player.height
+            player_hurtbox.x - camera_x,
+            player_hurtbox.y - camera_y,
+            player_hurtbox.width,
+            player_hurtbox.height
         ),
         2
     )
+        
 
     shadow_rect = pygame.Rect(
-        player.x - camera_x + 5,
-        player.bottom - camera_y - 8,
-        player.width - 10,
+        player_rect.x - camera_x + 5,
+        player_rect.bottom - camera_y - 8,
+        player_rect.width - 10,
         8
     )
 
