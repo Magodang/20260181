@@ -95,6 +95,8 @@ player_idle_sheet = SpriteSheet("week12/assets/ryo_idle.png")
 
 player_run_sheet = SpriteSheet("week12/assets/ryo_run.png")
 
+player_attack_sheet = SpriteSheet("week12/assets/ryo_attack.png")
+
 player_animations = {
 
     "idle": load_animation(
@@ -111,6 +113,14 @@ player_animations = {
         128,
         8,
         scale=3.5
+    ),
+
+    "attack" : load_animation(
+        player_attack_sheet,
+        128,
+        128,
+        8,
+        scale = 3.5
     )
 }
 
@@ -246,6 +256,7 @@ player_hurtbox = pygame.Rect(0, 0, 380, 400)
 player_animation = "idle"
 player_frame_index = 0
 player_animation_speed = 0.15
+attack_animation_speed = 0.4
 
 vel_y = 0
 
@@ -268,9 +279,16 @@ player_max_health = 100
 player_attack_damage = 10
 player_facing = 1
 attack_cd = 0
-attack_duration = 2
+attack_duration = 30
 attack_timer = 0
 attack_hitbox = None
+
+combo_stage = 0
+combo_window = False
+combo_input = False
+combo_timer = 0
+combo_max_time = 24
+attacking = False
 
 hit_enemies = []
 
@@ -288,11 +306,55 @@ while running:
 
     dt = clock.tick(60)
 
-    player_frame_index += player_animation_speed
+    if player_animation == "attack":
+        player_frame_index += attack_animation_speed
+    else:
+        player_frame_index += player_animation_speed
     animation = player_animations[player_animation]
 
-    if player_frame_index >= len(animation):
-        player_frame_index = 0
+    if not attacking:
+        if player_frame_index >= len(animation):
+            player_frame_index = 0
+
+    else:
+        current_frame = int(player_frame_index)
+
+        if combo_stage == 1:
+            if current_frame >= 3:
+                combo_window = True
+
+            if current_frame >= 5:
+                if combo_input:
+                    combo_stage = 2
+                    combo_input = False
+
+                    player_frame_index = 5
+
+                else:
+                    combo_timer += 1
+                    if combo_timer >= combo_max_time:
+                        attacking = False
+                        combo_window = False
+                        combo_timer = 0
+                        player_animation = "idle"
+
+        elif combo_stage == 2:
+            if current_frame >= 6:
+                combo_window = True
+
+            if current_frame >= 8:
+                if combo_input:
+                    combo_stage = 1
+                    combo_input = False
+                    player_frame_index = 2
+
+                else:
+                    combo_timer += 1
+                    if combo_timer >= combo_max_time:
+                        attacking = False
+                        combo_window = False
+                        combo_timer = 0
+                        player_animation = "idle"
 
     # =========================
     # 적 애니
@@ -524,6 +586,18 @@ while running:
 
             if event.key == pygame.K_o and player_hitstun <= 0:
 
+                if attacking:
+                    if combo_window:
+                        combo_input = True
+
+                    else:
+                        attacking = True
+                        combo_stage = 1
+                        combo_input = False
+                        combo_timer = 0
+                        player_animation = "attack"
+                        player_frame_index = 0
+
                 if attack_cd <= 0:
 
                     # =====================
@@ -552,6 +626,9 @@ while running:
                     elif on_ground:
 
                         attack_timer = attack_duration
+                        attacking = True
+                        player_animation = "attack"
+                        player_frame_index = 0
                         attack_cd = 8
 
                         hit_enemies = []
@@ -591,6 +668,7 @@ while running:
         attack_timer -= 1
     else:
         attack_hitbox = None
+        attacking = False
 
     for enemy in enemies:
 
@@ -657,7 +735,7 @@ while running:
 
     dx = 0
 
-    if player_hitstun <= 0:
+    if player_hitstun <= 0 and not attacking:
         if keys[pygame.K_a]:
             dx = -move_speed
             player_facing = -1
@@ -666,11 +744,17 @@ while running:
             dx = move_speed
             player_facing = 1
 
-        new_animation = "run" if dx != 0 else "idle"
+        if not attacking:
+            new_animation = (
+                "run"
+                if dx != 0
+                else "idle"
+            )
 
-        if new_animation != player_animation:
-            player_animation = new_animation
-            player_frame_index = 0
+            if new_animation != player_animation:
+
+                player_animation = new_animation
+                player_frame_index = 0
 
     # =====================
     # X 이동
@@ -723,7 +807,7 @@ while running:
     # =====================
     # 점프 실행
     # =====================
-    if input_buffer == "jump" and player_hitstun <= 0:
+    if input_buffer == "jump" and player_hitstun <= 0 and not attacking:
 
         # 일반 점프
         if was_on_ground or coyote_timer > 0:
