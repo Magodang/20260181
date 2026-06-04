@@ -255,7 +255,8 @@ player_hurtbox = pygame.Rect(0, 0, 380, 400)
 
 player_animation = "idle"
 player_frame_index = 0
-player_animation_speed = 0.15
+idle_animation_speed = 0.1
+run_animation_speed = 0.2
 attack_animation_speed = 0.4
 
 vel_y = 0
@@ -265,7 +266,7 @@ jump_power = -20
 gravity = 0.8
 on_ground = False
 extra_jumps = 1
-coyote_time = 6
+coyote_time = 8
 coyote_timer = 0
 input_buffer = None
 input_buffer_time = 6
@@ -287,8 +288,12 @@ combo_stage = 0
 combo_window = False
 combo_input = False
 combo_timer = 0
-combo_max_time = 24
+combo_max_timer = 12
 attacking = False
+
+draw_frames = (0,2)
+attack1_frames = (2, 5)
+attack2_frames = (5, 8)
 
 hit_enemies = []
 
@@ -306,55 +311,71 @@ while running:
 
     dt = clock.tick(60)
 
-    if player_animation == "attack":
-        player_frame_index += attack_animation_speed
-    else:
-        player_frame_index += player_animation_speed
+    idle_animation_speed = 0.1
+    run_animation_speed = 0.2
+    attack_animation_speed = 0.4
+
     animation = player_animations[player_animation]
 
     if not attacking:
+        if player_animation == "idle":
+            player_frame_index += idle_animation_speed
+        elif player_animation == "run":
+            player_frame_index += run_animation_speed
+
         if player_frame_index >= len(animation):
             player_frame_index = 0
 
     else:
-        current_frame = int(player_frame_index)
+        player_frame_index += attack_animation_speed
 
         if combo_stage == 1:
-            if current_frame >= 3:
+            if player_frame_index >= 3.5:
+                player_frame_index = float(attack1_frames[1] - 0.01)
                 combo_window = True
+                combo_timer += 1
 
-            if current_frame >= 5:
                 if combo_input:
                     combo_stage = 2
+                    player_frame_index = float(attack2_frames[0])
+                    combo_window = False
                     combo_input = False
+                    combo_timer = 0
+                    hit_enemies = []
+                    attack_cd = 8
 
-                    player_frame_index = 5
-
-                else:
-                    combo_timer += 1
-                    if combo_timer >= combo_max_time:
-                        attacking = False
-                        combo_window = False
-                        combo_timer = 0
-                        player_animation = "idle"
-
+                elif combo_timer >= combo_max_timer:
+                    attacking = False
+                    player_animation = "idle"
+                    player_frame_index = 0
+                    combo_stage = 0
+                    combo_window = False
+                    combo_timer = 0
+                    attack_hitbox = None
+                    
         elif combo_stage == 2:
-            if current_frame >= 6:
+            if player_frame_index >= attack2_frames[1]:
+                player_frame_index = float(attack2_frames[1] - 0.01)
                 combo_window = True
+                combo_timer += 1
 
-            if current_frame >= 8:
                 if combo_input:
                     combo_stage = 1
+                    player_frame_index = float(attack1_frames[0])
+                    combo_window = False
                     combo_input = False
-                    player_frame_index = 2
+                    combo_timer = 0
+                    hit_enemies = []
+                    attack_cd = 8
 
-                else:
-                    combo_timer += 1
-                    if combo_timer >= combo_max_time:
-                        attacking = False
-                        combo_window = False
-                        combo_timer = 0
-                        player_animation = "idle"
+                elif combo_timer >= combo_max_timer:
+                    attacking = False
+                    player_animation = "idle"
+                    player_frame_index = 0
+                    combo_stage = 0
+                    combo_window = False
+                    combo_timer = 0
+                    attack_hitbox = None
 
     # =========================
     # 적 애니
@@ -586,70 +607,52 @@ while running:
 
             if event.key == pygame.K_o and player_hitstun <= 0:
 
-                if attacking:
-                    if combo_window:
-                        combo_input = True
+                if attacking and combo_window:
+                    combo_input = True
 
-                    else:
+                elif not attacking and attack_cd <= 0:
+
+                    if not on_ground and not air_attack_used:
                         attacking = True
-                        combo_stage = 1
-                        combo_input = False
-                        combo_timer = 0
                         player_animation = "attack"
                         player_frame_index = 0
-
-                if attack_cd <= 0:
-
-                    # =====================
-                    # 공중 공격
-                    # =====================
-                    if not on_ground and not air_attack_used:
-
                         attack_timer = 8
                         attack_cd = 20
-
                         hit_enemies = []
-
                         vel_y = -12
-
                         attack_hitbox = pygame.Rect(
                             player_rect.centerx - 140,
                             player_rect.centery - 140,
-                            280,
-                            280,
+                            280, 280,
                         )
                         air_attack_used = True
 
-                    # =====================
-                    # 일반 공격
-                    # =====================
                     elif on_ground:
-
-                        attack_timer = attack_duration
                         attacking = True
                         player_animation = "attack"
-                        player_frame_index = 0
+                        player_frame_index = float(draw_frames[0])
+                        attack_timer = 9999999
+                        combo_stage = 1
+                        combo_window = False
+                        combo_input = False
+                        combo_timer = 0
                         attack_cd = 8
-
                         hit_enemies = []
 
-                        attack_width = 160
-                        attack_height = 90
-
+                        attack_width = 300
+                        attack_height = 120
                         if player_facing == 1:
                             attack_hitbox = pygame.Rect(
-                                player_rect.right,
-                                player_rect.y + 10,
-                                attack_width,
-                                attack_height,
+                                player_rect.x - 70,
+                                player_rect.y - 40,
+                                attack_width, attack_height,
                             )
                         else:
                             attack_hitbox = pygame.Rect(
-                                player_rect.x - attack_width,
-                                player_rect.y + 10,
-                                attack_width,
-                                attack_height,
-                        )
+                                player_rect.x - 190,
+                                player_rect.y - 40,
+                                attack_width, attack_height,
+                            )
 
     # =====================
     # 플레이어 피격 판정
@@ -669,6 +672,10 @@ while running:
     else:
         attack_hitbox = None
         attacking = False
+
+        if player_animation == "attack":
+            player_animation = "idle"
+            player_frame_index = 0
 
     for enemy in enemies:
 
@@ -884,7 +891,7 @@ while running:
     # 카메라
     # =====================
     target_x = player_rect.centerx - WIDTH // 2
-    target_y = player_rect.centery - HEIGHT // 2
+    target_y = player_rect.centery - HEIGHT // 2 - 60
 
     camera_x += (target_x - camera_x) * 0.1
     camera_y += (target_y - camera_y) * 0.1
@@ -1000,10 +1007,15 @@ while running:
         )
 
     # 플레이어
+    frame = min(
+        int(player_frame_index),
+        len(player_animations[player_animation]) - 1
+    )
+
     player_image = player_animations[
         player_animation
     ][
-        int(player_frame_index)
+        frame
     ]
     
     if player_facing == -1:
