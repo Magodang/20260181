@@ -91,11 +91,28 @@ WORLD_WIDTH = 16000
 
 ground = pygame.Rect(0, HEIGHT - 80, WORLD_WIDTH, 80)
 
-player_idle_sheet = SpriteSheet("week12/assets/ryo_idle.png")
+player_idle_sheet = SpriteSheet("week12/assets/cha/ryo_idle.png")
 
-player_run_sheet = SpriteSheet("week12/assets/ryo_run.png")
+player_run_sheet = SpriteSheet("week12/assets/cha/ryo_run.png")
 
-player_attack_sheet = SpriteSheet("week12/assets/ryo_attack.png")
+player_attack_sheet = SpriteSheet("week12/assets/cha/ryo_attack.png")
+
+player_air_attack_sheet = SpriteSheet("week12/assets/cha/ryo_jump_attack.png")
+
+player_jump_sheet = SpriteSheet("week12/assets/cha/ryo_jump.png")
+
+down_frame = player_jump_sheet.get_image(
+    128, 0,
+    128, 128
+)
+
+down_frame = pygame.transform.scale(
+    down_frame,
+    (
+        int(128 * 3.5),
+        int(128 * 3.5)
+    )
+)
 
 player_animations = {
 
@@ -121,10 +138,28 @@ player_animations = {
         128,
         8,
         scale = 3.5
-    )
+    ),
+
+    "jump": load_animation(
+        player_jump_sheet,
+        128,
+        128,
+        1,
+        scale=3.5,
+    ),
+
+    "down": [down_frame],
+
+    "air_attack": load_animation(
+        player_air_attack_sheet,
+        128,
+        128,
+        4,
+        scale=3.5,
+    ),
 }
 
-enemy1_sheet = SpriteSheet("week12/assets/en1.png")
+enemy1_sheet = SpriteSheet("week12/assets/cha/en1.png")
 
 enemy1_animations = {
     "idle": load_animation(
@@ -136,7 +171,7 @@ enemy1_animations = {
     )
 }
 
-enemy2_sheet = SpriteSheet("week12/assets/en2.png")
+enemy2_sheet = SpriteSheet("week12/assets/cha/en2.png")
 
 enemy2_animations = {
 
@@ -157,9 +192,12 @@ platforms = [
 
 # 벽
 walls = [
-    pygame.Rect(1300, 570, 70, 70),
-    pygame.Rect(2300, 320, 250, 320),
-    pygame.Rect(2460, 520, 400, 120),
+    pygame.Rect(1300, 500, 120, 140),
+    pygame.Rect(2300, 290, 250, 350),
+    pygame.Rect(2460, 440, 1200, 200),
+    pygame.Rect(3660, 290, 450, 350),
+    pygame.Rect(4110, 170, 400, 470),
+    pygame.Rect(6800, 490, 2000, 150),
 ]
 
 def enemy1(x, y):
@@ -188,8 +226,8 @@ def enemy1(x, y):
         "current_animation": "idle",
         "frame_index": 0,
         "animation_speed": 0.05,
-        "health": 20,
-        "speed": 2,
+        "health": 30,
+        "speed": 1.5,
         "damage": 20,
         "direction": 1,
         "start_x": x,
@@ -230,12 +268,12 @@ def enemy2(x, y):
         "frame_index": 0,
         "animation_speed": 0.04,
         "health": 10,
-        "speed":3,
+        "speed":1,
         "damage": 20,
         "direction": 1,
         "start_x": x,
         "patrol_range": 350,
-        "detect_range": 700,
+        "detect_range": 350,
         "aggro": False,
         "chase_range": 1200,
         "velocity_x": 0,
@@ -245,12 +283,17 @@ def enemy2(x, y):
 # 적
 enemies = [
 
-        enemy1(1550, 550),
-        enemy2(1700, 200),
+        enemy1(3100, 200),
+        enemy2(4750, 20),
+        enemy2(4820, -100),
+        enemy1(5600, 550),
+        enemy1(5800, 550),
+        enemy2(5900, 250),
+        enemy1(6200, 550),
 
 ]
 
-player_rect = pygame.Rect(100, HEIGHT - 200, 60, 100)
+player_rect = pygame.Rect(100, 455, 60, 180)
 player_hurtbox = pygame.Rect(0, 0, 380, 400)
 
 player_animation = "idle"
@@ -258,6 +301,7 @@ player_frame_index = 0
 idle_animation_speed = 0.1
 run_animation_speed = 0.2
 attack_animation_speed = 0.4
+air_attack_animation_speed = 0.2
 
 vel_y = 0
 
@@ -318,16 +362,27 @@ while running:
     animation = player_animations[player_animation]
 
     if not attacking:
+
+        animation = player_animations[player_animation]
+
         if player_animation == "idle":
             player_frame_index += idle_animation_speed
+
         elif player_animation == "run":
             player_frame_index += run_animation_speed
+
+        elif player_animation in ("jump", "down"):
+            player_frame_index = 0
 
         if player_frame_index >= len(animation):
             player_frame_index = 0
 
     else:
-        player_frame_index += attack_animation_speed
+        if player_animation == "air_attack":
+            player_frame_index += air_attack_animation_speed
+
+        else:
+            player_frame_index += attack_animation_speed
 
         if combo_stage == 1:
             if player_frame_index >= 3.5:
@@ -614,17 +669,27 @@ while running:
 
                     if not on_ground and not air_attack_used:
                         attacking = True
-                        player_animation = "attack"
+                        player_animation = "air_attack"
                         player_frame_index = 0
                         attack_timer = 8
                         attack_cd = 20
                         hit_enemies = []
                         vel_y = -12
-                        attack_hitbox = pygame.Rect(
-                            player_rect.centerx - 140,
-                            player_rect.centery - 140,
-                            280, 280,
-                        )
+
+                        if player_facing == 1:
+
+                            attack_hitbox = pygame.Rect(
+                                player_rect.centerx - 155,
+                                player_rect.centery - 280,
+                                380, 440,
+                            )
+                        else:
+                            attack_hitbox = pygame.Rect(
+                                player_rect.centerx - 225,
+                                player_rect.centery - 280,
+                                380, 440,
+                            )
+
                         air_attack_used = True
 
                     elif on_ground:
@@ -640,17 +705,17 @@ while running:
                         hit_enemies = []
 
                         attack_width = 300
-                        attack_height = 120
+                        attack_height = 150
                         if player_facing == 1:
                             attack_hitbox = pygame.Rect(
                                 player_rect.x - 70,
-                                player_rect.y - 40,
+                                player_rect.y + 20,
                                 attack_width, attack_height,
                             )
                         else:
                             attack_hitbox = pygame.Rect(
-                                player_rect.x - 190,
-                                player_rect.y - 40,
+                                player_rect.x - 170,
+                                player_rect.y + 20,
                                 attack_width, attack_height,
                             )
 
@@ -676,6 +741,12 @@ while running:
         if player_animation == "attack":
             player_animation = "idle"
             player_frame_index = 0
+
+    player_hurtbox.x = player_rect.x
+    player_hurtbox.y = player_rect.y
+
+    player_hurtbox.width = player_rect.width
+    player_hurtbox.height = player_rect.height
 
     for enemy in enemies:
 
@@ -752,14 +823,20 @@ while running:
             player_facing = 1
 
         if not attacking:
-            new_animation = (
-                "run"
-                if dx != 0
-                else "idle"
-            )
+            if not on_ground:
+                if vel_y < 0:
+                    new_animation = "jump"
+                
+                else:
+                    new_animation = "down"
+            
+            else:
+                if dx != 0:
+                    new_animation = "run"
+                else:
+                    new_animation = "idle"
 
             if new_animation != player_animation:
-
                 player_animation = new_animation
                 player_frame_index = 0
 
@@ -881,11 +958,25 @@ while running:
 
                 vel_y = 0
 
-    player_hurtbox.x = player_rect.x - 5
-    player_hurtbox.y = player_rect.y - 60
+    if not attacking:
 
-    player_hurtbox.width = 50
-    player_hurtbox.height = 140
+        if not on_ground:
+
+            if vel_y < 0:
+                new_animation = "jump"
+            else:
+                new_animation = "down"
+
+        else:
+
+            if dx != 0:
+                new_animation = "run"
+            else:
+                new_animation = "idle"
+
+        if new_animation != player_animation:
+            player_animation = new_animation
+            player_frame_index = 0
 
     # =====================
     # 카메라
@@ -1029,12 +1120,12 @@ while running:
         player_rect.centerx
         - player_image.get_width() // 2
     )
-    draw_x += 20
+    draw_x += 30
 
     draw_y = (
         player_rect.bottom- player_image.get_height()
     )
-    draw_y += 113
+    draw_y += 110
 
     if player_facing == 1:
         draw_x -= 60
@@ -1061,19 +1152,6 @@ while running:
         2
     )
         
-
-    shadow_rect = pygame.Rect(
-        player_rect.x - camera_x + 5,
-        player_rect.bottom - camera_y - 8,
-        player_rect.width - 10,
-        8
-    )
-
-    pygame.draw.ellipse(
-        screen,
-        (30, 30, 30),
-        shadow_rect
-    )
 
     # 플레이어 공격 히트박스
     if attack_hitbox:
