@@ -311,7 +311,6 @@ def load_chapter_1():
 
     return platforms, walls, heal_objects, enemies
 
-
 def load_chapter_2():
 
     # 플랫폼
@@ -322,6 +321,11 @@ def load_chapter_2():
     # 벽
     walls = [
         pygame.Rect(1300, 500, 120, 140),
+        pygame.Rect(2300, 290, 250, 350),
+        pygame.Rect(2460, 440, 1200, 200),
+        pygame.Rect(3660, 290, 450, 350),
+        pygame.Rect(4110, 170, 400, 470),
+        pygame.Rect(6800, 490, 2000, 150),
     ]
 
     # 신사
@@ -333,6 +337,12 @@ def load_chapter_2():
     enemies = [
 
         enemy1(3100, 200),
+        enemy2(4750, 20),
+        enemy2(4820, -100),
+        enemy1(5600, 550),
+        enemy1(5800, 550),
+        enemy2(5900, 250),
+        enemy1(6200, 550),
     ]
 
     return platforms, walls, heal_objects, enemies

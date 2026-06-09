@@ -87,14 +87,7 @@ WALL_COLOR = (130, 130, 130)
 PLAYER_COLOR = (220, 220, 220)
 ENEMY_COLOR = (170, 170, 170)
 
-current_chapter = 1
-
-CHAPTER_WIDTHS = {
-    1: 10000,
-    2: 6000,
-}
-
-WORLD_WIDTH = CHAPTER_WIDTHS[current_chapter]
+WORLD_WIDTH = 16000
 
 ground = pygame.Rect(0, HEIGHT - 80, WORLD_WIDTH, 80)
 
@@ -192,6 +185,21 @@ enemy2_animations = {
     )
 }
 
+# 플랫폼
+platforms = [
+    pygame.Rect(300, 560, 200, 20),
+]
+
+# 벽
+walls = [
+    pygame.Rect(1300, 500, 120, 140),
+    pygame.Rect(2300, 290, 250, 350),
+    pygame.Rect(2460, 440, 1200, 200),
+    pygame.Rect(3660, 290, 450, 350),
+    pygame.Rect(4110, 170, 400, 470),
+    pygame.Rect(6800, 490, 2000, 150),
+]
+
 def enemy1(x, y):
 
     collision_rect = pygame.Rect(
@@ -274,31 +282,8 @@ def enemy2(x, y):
         "hitstun": 0
     }
 
-
-def load_chapter_1():
-
-    # 플랫폼
-    platforms = [
-        pygame.Rect(300, 560, 200, 20),
-    ]
-
-    # 벽
-    walls = [
-        pygame.Rect(1300, 500, 120, 140),
-        pygame.Rect(2300, 290, 250, 350),
-        pygame.Rect(2460, 440, 1200, 200),
-        pygame.Rect(3660, 290, 450, 350),
-        pygame.Rect(4110, 170, 400, 470),
-        pygame.Rect(6800, 490, 2000, 150),
-    ]
-
-    # 신사
-    heal_objects = [
-        pygame.Rect(7700, 350, 100, 140),
-    ]
-
-    # 적
-    enemies = [
+# 적
+enemies = [
 
         enemy1(3100, 200),
         enemy2(4750, 20),
@@ -307,38 +292,8 @@ def load_chapter_1():
         enemy1(5800, 550),
         enemy2(5900, 250),
         enemy1(6200, 550),
-    ]
 
-    return platforms, walls, heal_objects, enemies
-
-
-def load_chapter_2():
-
-    # 플랫폼
-    platforms = [
-        pygame.Rect(500, 560, 200, 20),
-    ]
-
-    # 벽
-    walls = [
-        pygame.Rect(1300, 500, 120, 140),
-    ]
-
-    # 신사
-    heal_objects = [
-        pygame.Rect(7700, 350, 100, 140),
-    ]
-
-    # 적
-    enemies = [
-
-        enemy1(3100, 200),
-    ]
-
-    return platforms, walls, heal_objects, enemies
-
-platforms, walls, heal_objects, enemies = load_chapter_1()
-
+]
 
 player_rect = pygame.Rect(100, 455, 60, 180)
 player_hurtbox = pygame.Rect(0, 0, 380, 400)
@@ -352,7 +307,7 @@ air_attack_animation_speed = 0.2
 
 vel_y = 0
 
-move_speed = 20
+move_speed = 8
 jump_power = -20
 gravity = 0.8
 on_ground = False
@@ -399,17 +354,6 @@ player_hitstun = 0
 running = True
 
 while running:
-
-    can_interact = False
-    current_heal_objects = None
-
-    for obj in heal_objects:
-
-        if player_rect.colliderect(obj):
-
-            can_interact = True
-            current_heal_objects = obj
-            break
 
     dt = clock.tick(60)
 
@@ -505,18 +449,6 @@ while running:
     # 적 AI
     # =========================
     for enemy in enemies:
-
-        if enemy["type"] == "enemy1":
-            enemy["hurtbox"].topleft = (
-                enemy["rect"].x - 15,
-                enemy["rect"].y - 35
-            )
-
-        elif enemy["type"] == "enemy2":
-            enemy["hurtbox"].topleft = (
-                enemy["rect"].x - 19,
-                enemy["rect"].y - 15
-            )
 
         if enemy["hitstun"] > 0:
             enemy["hitstun"] -= 1
@@ -734,10 +666,6 @@ while running:
                 input_buffer = "jump"
                 input_buffer_timer = input_buffer_time
 
-            if event.key == pygame.K_i:
-                if can_interact:
-                    player_health = player_max_health
-
             if event.key == pygame.K_o and player_hitstun <= 0:
 
                 if attacking and combo_window:
@@ -888,16 +816,6 @@ while running:
             if enemy["health"] > 0
         ]
 
-    can_interact = False
-    current_heal_objects = None
-
-    for obj in heal_objects:
-
-        if player_rect.colliderect(obj):
-
-            can_interact = True
-            current_heal_objects = obj
-            break
     # =====================
     # 입력 처리
     # =====================
@@ -951,50 +869,6 @@ while running:
                 player_rect.left = wall.right
 
     # 월드 경계
-    if current_chapter == 1 and player_rect.right >= WORLD_WIDTH:
-
-        current_chapter = 2
-
-        platforms, walls, heal_objects, enemies = load_chapter_2()
-
-        WORLD_WIDTH = CHAPTER_WIDTHS[current_chapter]
-
-        ground = pygame.Rect(
-            0,
-            HEIGHT - 80,
-            WORLD_WIDTH,
-            80
-        )
-
-        player_rect.left = 0
-
-        camera_x = 0
-
-
-    # 챕터2 -> 챕터1
-
-    elif current_chapter == 2 and player_rect.left <= 0:
-
-        current_chapter = 1
-
-        platforms, walls, heal_objects, enemies = load_chapter_1()
-
-        WORLD_WIDTH = CHAPTER_WIDTHS[current_chapter]
-
-        ground = pygame.Rect(
-            0,
-            HEIGHT - 80,
-            WORLD_WIDTH,
-            80
-        )
-
-        player_rect.right = WORLD_WIDTH
-
-        camera_x = WORLD_WIDTH - WIDTH
-
-
-    # 챕터 내부 경계
-
     if player_rect.left < 0:
         player_rect.left = 0
 
@@ -1174,19 +1048,6 @@ while running:
             )
         )
 
-    for obj in heal_objects:
-
-        pygame.draw.rect(
-            screen,
-            (0, 255, 255),
-            (
-                obj.x - camera_x,
-                obj.y - camera_y,
-                obj.width,
-                obj.height
-            )
-        )
-
     # 적
     for enemy in enemies:
 
@@ -1353,24 +1214,6 @@ while running:
         (30, 30, 600, 30),
         2
     )
-
-    if can_interact:
-
-        font = pygame.font.Font(None, 40)
-
-        text = font.render(
-            "Press I",
-            True,
-            (255,255,255)
-        )
-
-        screen.blit(
-            text,
-            (
-                player_rect.x - camera_x,
-                player_rect.y - 50 - camera_y
-            )
-        )
 
     pygame.display.flip()
 
