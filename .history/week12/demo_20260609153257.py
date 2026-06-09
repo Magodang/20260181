@@ -97,27 +97,9 @@ CHAPTER_WIDTHS = {
     2: 6000,
 }
 
-CHAPTER_SPAWN = {
-
-    1: {
-        "left": 200,
-        "right": 9700,
-    },
-
-    2: {
-        "left": 200,
-        "right": 5700,
-    }
-}
-
 WORLD_WIDTH = CHAPTER_WIDTHS[current_chapter]
 
-ground = pygame.Rect(
-    0,
-    HEIGHT - 80,
-    WORLD_WIDTH,
-    80
-)
+ground = pygame.Rect(0, HEIGHT - 80, WORLD_WIDTH, 80)
 
 player_idle_sheet = SpriteSheet("week12/assets/cha/ryo_idle.png")
 
@@ -373,7 +355,7 @@ air_attack_animation_speed = 0.2
 
 vel_y = 0
 
-move_speed = 8
+move_speed = 20
 jump_power = -20
 gravity = 0.8
 on_ground = False
@@ -418,7 +400,6 @@ fade_alpha = 0
 fading = False
 fade_direction = 1
 next_chapter = None
-chapter_transition = False
 
 # =========================
 # 게임 루프
@@ -765,7 +746,7 @@ while running:
                 if can_interact:
                     player_health = player_max_health
 
-            if event.key == pygame.K_o and player_hitstun <= 0 and not chapter_transition:
+            if event.key == pygame.K_o and player_hitstun <= 0:
 
                 if attacking and combo_window:
                     combo_input = True
@@ -932,7 +913,7 @@ while running:
 
     dx = 0
 
-    if player_hitstun <= 0 and not attacking and not chapter_transition:
+    if player_hitstun <= 0 and not attacking:
         if keys[pygame.K_a]:
             dx = -move_speed
             player_facing = -1
@@ -984,7 +965,6 @@ while running:
         and not fading
     ):
         fading = True
-        chapter_transition = True
         fade_direction = 1
         next_chapter = 2
 
@@ -994,7 +974,6 @@ while running:
         and not fading
     ):
         fading = True
-        chapter_transition = True
         fade_direction = 1
         next_chapter = 1
 
@@ -1024,7 +1003,7 @@ while running:
     # =====================
     # 점프 실행
     # =====================
-    if input_buffer == "jump" and player_hitstun <= 0 and not attacking and not chapter_transition:
+    if input_buffer == "jump" and player_hitstun <= 0 and not attacking:
 
         # 일반 점프
         if was_on_ground or coyote_timer > 0:
@@ -1147,8 +1126,7 @@ while running:
 
                 WORLD_WIDTH = CHAPTER_WIDTHS[1]
 
-                player_rect.x = CHAPTER_SPAWN[1]["right"]
-                player_rect.y = 455
+                player_rect.right = WORLD_WIDTH - 100
 
                 camera_x = WORLD_WIDTH - WIDTH
 
@@ -1163,8 +1141,7 @@ while running:
 
                 WORLD_WIDTH = CHAPTER_WIDTHS[2]
 
-                player_rect.x = CHAPTER_SPAWN[2]["left"]
-                player_rect.y = 455
+                player_rect.left = 100
 
                 camera_x = 0
 
@@ -1181,7 +1158,6 @@ while running:
 
             fade_alpha = 0
             fading = False
-            chapter_transition = False
 
     # =====================
     # 렌더링

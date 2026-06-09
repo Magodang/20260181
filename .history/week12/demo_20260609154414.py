@@ -373,7 +373,7 @@ air_attack_animation_speed = 0.2
 
 vel_y = 0
 
-move_speed = 8
+move_speed = 20
 jump_power = -20
 gravity = 0.8
 on_ground = False

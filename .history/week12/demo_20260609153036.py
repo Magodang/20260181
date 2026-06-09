@@ -78,9 +78,6 @@ HEIGHT = 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Demo")
 
-fade_surface = pygame.Surface((WIDTH, HEIGHT))
-fade_surface.fill((0, 0, 0))
-
 clock = pygame.time.Clock()
 
 BG_COLOR = (18, 18, 18)
@@ -97,27 +94,9 @@ CHAPTER_WIDTHS = {
     2: 6000,
 }
 
-CHAPTER_SPAWN = {
-
-    1: {
-        "left": 200,
-        "right": 9700,
-    },
-
-    2: {
-        "left": 200,
-        "right": 5700,
-    }
-}
-
 WORLD_WIDTH = CHAPTER_WIDTHS[current_chapter]
 
-ground = pygame.Rect(
-    0,
-    HEIGHT - 80,
-    WORLD_WIDTH,
-    80
-)
+ground = pygame.Rect(0, HEIGHT - 80, WORLD_WIDTH, 80)
 
 player_idle_sheet = SpriteSheet("week12/assets/cha/ryo_idle.png")
 
@@ -373,7 +352,7 @@ air_attack_animation_speed = 0.2
 
 vel_y = 0
 
-move_speed = 8
+move_speed = 20
 jump_power = -20
 gravity = 0.8
 on_ground = False
@@ -418,7 +397,6 @@ fade_alpha = 0
 fading = False
 fade_direction = 1
 next_chapter = None
-chapter_transition = False
 
 # =========================
 # 게임 루프
@@ -765,7 +743,7 @@ while running:
                 if can_interact:
                     player_health = player_max_health
 
-            if event.key == pygame.K_o and player_hitstun <= 0 and not chapter_transition:
+            if event.key == pygame.K_o and player_hitstun <= 0:
 
                 if attacking and combo_window:
                     combo_input = True
@@ -932,7 +910,7 @@ while running:
 
     dx = 0
 
-    if player_hitstun <= 0 and not attacking and not chapter_transition:
+    if player_hitstun <= 0 and not attacking:
         if keys[pygame.K_a]:
             dx = -move_speed
             player_facing = -1
@@ -978,25 +956,55 @@ while running:
                 player_rect.left = wall.right
 
     # 월드 경계
-    if (
-        current_chapter == 1
-        and player_rect.right >= WORLD_WIDTH
-        and not fading
-    ):
-        fading = True
-        chapter_transition = True
-        fade_direction = 1
-        next_chapter = 2
+    if current_chapter == 1 and player_rect.right >= WORLD_WIDTH:
 
-    elif (
-        current_chapter == 2
-        and player_rect.left <= 0
-        and not fading
-    ):
-        fading = True
-        chapter_transition = True
-        fade_direction = 1
-        next_chapter = 1
+        current_chapter = 2
+
+        platforms, walls, heal_objects, enemies = load_chapter_2()
+
+        WORLD_WIDTH = CHAPTER_WIDTHS[current_chapter]
+
+        ground = pygame.Rect(
+            0,
+            HEIGHT - 80,
+            WORLD_WIDTH,
+            80
+        )
+
+        player_rect.left = 0
+
+        camera_x = 0
+
+
+    # 챕터2 -> 챕터1
+
+    elif current_chapter == 2 and player_rect.left <= 0:
+
+        current_chapter = 1
+
+        platforms, walls, heal_objects, enemies = load_chapter_1()
+
+        WORLD_WIDTH = CHAPTER_WIDTHS[current_chapter]
+
+        ground = pygame.Rect(
+            0,
+            HEIGHT - 80,
+            WORLD_WIDTH,
+            80
+        )
+
+        player_rect.right = WORLD_WIDTH
+
+        camera_x = WORLD_WIDTH - WIDTH
+
+
+    # 챕터 내부 경계
+
+    if player_rect.left < 0:
+        player_rect.left = 0
+
+    if player_rect.right > WORLD_WIDTH:
+        player_rect.right = WORLD_WIDTH
 
     # =====================
     # Y 이동 준비
@@ -1024,7 +1032,7 @@ while running:
     # =====================
     # 점프 실행
     # =====================
-    if input_buffer == "jump" and player_hitstun <= 0 and not attacking and not chapter_transition:
+    if input_buffer == "jump" and player_hitstun <= 0 and not attacking:
 
         # 일반 점프
         if was_on_ground or coyote_timer > 0:
@@ -1125,63 +1133,6 @@ while running:
     
     if camera_x > WORLD_WIDTH - WIDTH:
         camera_x = WORLD_WIDTH - WIDTH
-
-    if fading:
-
-        fade_alpha += fade_direction * 12
-
-        if fade_alpha >= 255:
-
-            fade_alpha = 255
-
-            current_chapter = next_chapter
-
-            if current_chapter == 1:
-
-                (
-                    platforms,
-                    walls,
-                    heal_objects,
-                    enemies
-                ) = load_chapter_1()
-
-                WORLD_WIDTH = CHAPTER_WIDTHS[1]
-
-                player_rect.x = CHAPTER_SPAWN[1]["right"]
-                player_rect.y = 455
-
-                camera_x = WORLD_WIDTH - WIDTH
-
-            else:
-
-                (
-                    platforms,
-                    walls,
-                    heal_objects,
-                    enemies
-                ) = load_chapter_2()
-
-                WORLD_WIDTH = CHAPTER_WIDTHS[2]
-
-                player_rect.x = CHAPTER_SPAWN[2]["left"]
-                player_rect.y = 455
-
-                camera_x = 0
-
-            ground = pygame.Rect(
-                0,
-                HEIGHT - 80,
-                WORLD_WIDTH,
-                80
-            )
-
-            fade_direction = -1
-
-        elif fade_alpha <= 0:
-
-            fade_alpha = 0
-            fading = False
-            chapter_transition = False
 
     # =====================
     # 렌더링
@@ -1424,17 +1375,6 @@ while running:
                 player_rect.x - camera_x,
                 player_rect.y - 50 - camera_y
             )
-        )
-
-    if fade_alpha > 0:
-
-        fade_surface.set_alpha(
-            int(fade_alpha)
-        )
-
-        screen.blit(
-            fade_surface,
-            (0, 0)
         )
 
     pygame.display.flip()

@@ -373,7 +373,7 @@ air_attack_animation_speed = 0.2
 
 vel_y = 0
 
-move_speed = 8
+move_speed = 20
 jump_power = -20
 gravity = 0.8
 on_ground = False
@@ -1148,7 +1148,6 @@ while running:
                 WORLD_WIDTH = CHAPTER_WIDTHS[1]
 
                 player_rect.x = CHAPTER_SPAWN[1]["right"]
-                player_rect.y = 455
 
                 camera_x = WORLD_WIDTH - WIDTH
 
@@ -1164,7 +1163,6 @@ while running:
                 WORLD_WIDTH = CHAPTER_WIDTHS[2]
 
                 player_rect.x = CHAPTER_SPAWN[2]["left"]
-                player_rect.y = 455
 
                 camera_x = 0
 
