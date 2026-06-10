@@ -213,6 +213,34 @@ enemy2_animations = {
     )
 }
 
+forest1 = pygame.image.load(
+    resource_path("week12/assets/background/1.png")
+).convert_alpha()
+
+forest2 = pygame.image.load(
+    resource_path("week12/assets/background/2.png")
+).convert_alpha()
+
+forest3 = pygame.image.load(
+    resource_path("week12/assets/background/3.png")
+).convert_alpha()
+
+forest4 = pygame.image.load(
+    resource_path("week12/assets/background/4.png")
+).convert_alpha()
+
+fog = pygame.image.load(
+    resource_path("week12/assets/background/5.png")
+).convert_alpha()
+
+forest1 = pygame.transform.scale(forest1, (620, 320))
+
+forest2 = pygame.transform.scale(forest2, (620, 320))
+
+forest3 = pygame.transform.scale(forest3, (620, 320))
+
+forest4 = pygame.transform.scale(forest4, (620, 320))
+
 def enemy1(x, y):
 
     collision_rect = pygame.Rect(
@@ -239,9 +267,9 @@ def enemy1(x, y):
         "current_animation": "idle",
         "frame_index": 0,
         "animation_speed": 0.05,
-        "health": 30,
-        "speed": 1.5,
-        "damage": 20,
+        "health": 40,
+        "speed": 2.5,
+        "damage": 10,
         "direction": 1,
         "start_x": x,
         "patrol_range": 200,
@@ -282,8 +310,8 @@ def enemy2(x, y):
         "frame_index": 0,
         "animation_speed": 0.04,
         "health": 10,
-        "speed":1,
-        "damage": 20,
+        "speed":2,
+        "damage": 10,
         "direction": 1,
         "start_x": x,
         "patrol_range": 350,
@@ -295,12 +323,10 @@ def enemy2(x, y):
         "hitstun": 0
     }
 
-
 def load_chapter_1():
 
     # 플랫폼
     platforms = [
-        pygame.Rect(300, 560, 200, 20),
     ]
 
     # 벽
@@ -311,6 +337,50 @@ def load_chapter_1():
         pygame.Rect(3660, 290, 450, 350),
         pygame.Rect(4110, 170, 400, 470),
         pygame.Rect(6800, 490, 2000, 150),
+    ]
+
+    bg1_objects = [
+
+        {
+            "image": forest2,
+            "x": 2843,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.2,
+            "parallax_y": 0.04
+        },
+
+        {
+            "image": forest1,
+            "x": -50,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.2,
+            "parallax_y": 0.04
+        },
+
+        {
+            "image": forest1,
+            "x": 1395,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.2,
+            "parallax_y": 0.04
+        },
+
+        {
+            "image": forest1,
+            "x": 2843,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.2,
+            "parallax_y": 0.04
+        },
+
     ]
 
     # 신사
@@ -330,7 +400,7 @@ def load_chapter_1():
         enemy1(6200, 550),
     ]
 
-    return platforms, walls, heal_objects, enemies
+    return platforms, walls, heal_objects, enemies, bg1_objects
 
 
 def load_chapter_2():
@@ -358,7 +428,7 @@ def load_chapter_2():
 
     return platforms, walls, heal_objects, enemies
 
-platforms, walls, heal_objects, enemies = load_chapter_1()
+platforms, walls, heal_objects, enemies, bg1_objects = load_chapter_1()
 
 
 player_rect = pygame.Rect(100, 455, 60, 180)
@@ -373,7 +443,7 @@ air_attack_animation_speed = 0.2
 
 vel_y = 0
 
-move_speed = 8
+move_speed = 20
 jump_power = -20
 gravity = 0.8
 on_ground = False
@@ -1188,6 +1258,35 @@ while running:
     # =====================
     screen.fill(BG_COLOR)
 
+    # 배경
+    for obj in bg1_objects:
+
+        image = pygame.transform.scale(
+            obj["image"],
+            (
+                obj["w"],
+                obj["h"]
+            )
+        )
+
+        draw_x = (
+            obj["x"]
+            - camera_x * obj["parallax_x"]
+        )
+
+        draw_y = (
+            obj["y"]
+            - camera_y * obj["parallax_y"]
+        )
+
+        screen.blit(
+            image,
+            (
+                draw_x,
+                draw_y
+            )
+        )
+
     # 바닥
     pygame.draw.rect(
         screen,
@@ -1343,6 +1442,18 @@ while running:
         )
     )
 
+    #안개
+    fog_image = pygame.transform.scale(
+        fog,
+        (WIDTH, HEIGHT)
+    )
+
+    screen.blit(
+        fog_image,
+        (0,0)
+    )
+
+    #허트박스
     pygame.draw.rect(
         screen,
         (0, 255, 0),
