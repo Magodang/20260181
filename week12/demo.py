@@ -70,6 +70,13 @@ def load_animation(
     return frames
 
 
+def flip_animation(frames):
+    return [
+        pygame.transform.flip(frame, True, False)
+        for frame in frames
+    ]
+
+
 pygame.init()
 
 WIDTH = 1280
@@ -82,6 +89,7 @@ fade_surface = pygame.Surface((WIDTH, HEIGHT))
 fade_surface.fill((0, 0, 0))
 
 clock = pygame.time.Clock()
+fps_font = pygame.font.Font(None, 28)
 
 BG_COLOR = (18, 18, 18)
 GROUND_COLOR = (45, 45, 45)
@@ -93,20 +101,26 @@ ENEMY_COLOR = (170, 170, 170)
 current_chapter = 1
 
 CHAPTER_WIDTHS = {
-    1: 10000,
+    1: 16000,
     2: 6000,
+    3: 20000,
 }
 
 CHAPTER_SPAWN = {
 
     1: {
         "left": 200,
-        "right": 9700,
+        "right": 15700,
     },
 
     2: {
         "left": 200,
         "right": 5700,
+    },
+
+    3: {
+        "left": 200,
+        "right": 19700,
     }
 }
 
@@ -128,6 +142,8 @@ player_attack_sheet = SpriteSheet("week12/assets/cha/ryo_attack.png")
 player_air_attack_sheet = SpriteSheet("week12/assets/cha/ryo_jump_attack.png")
 
 player_jump_sheet = SpriteSheet("week12/assets/cha/ryo_jump.png")
+
+player_knockback_sheet = SpriteSheet("week12/assets/cha/ryo_knockback.png")
 
 down_frame = player_jump_sheet.get_image(
     128, 0,
@@ -185,6 +201,19 @@ player_animations = {
         4,
         scale=3.5,
     ),
+
+    "knockback": load_animation(
+        player_knockback_sheet,
+        128,
+        128,
+        2,
+        scale=3.5,
+    ),
+}
+
+player_flipped_animations = {
+    name: flip_animation(frames)
+    for name, frames in player_animations.items()
 }
 
 enemy1_sheet = SpriteSheet("week12/assets/cha/en1.png")
@@ -199,6 +228,11 @@ enemy1_animations = {
     )
 }
 
+enemy1_flipped_animations = {
+    name: flip_animation(frames)
+    for name, frames in enemy1_animations.items()
+}
+
 enemy2_sheet = SpriteSheet("week12/assets/cha/en2.png")
 
 enemy2_animations = {
@@ -211,6 +245,11 @@ enemy2_animations = {
         2,
         scale=0.4
     )
+}
+
+enemy2_flipped_animations = {
+    name: flip_animation(frames)
+    for name, frames in enemy2_animations.items()
 }
 
 forest1 = pygame.image.load(
@@ -241,6 +280,18 @@ forest3 = pygame.transform.scale(forest3, (620, 320))
 
 forest4 = pygame.transform.scale(forest4, (620, 320))
 
+BACKGROUND_SIZE = (1448, 820)
+
+forest1 = pygame.transform.scale(forest1, BACKGROUND_SIZE)
+
+forest2 = pygame.transform.scale(forest2, BACKGROUND_SIZE)
+
+forest3 = pygame.transform.scale(forest3, BACKGROUND_SIZE)
+
+forest4 = pygame.transform.scale(forest4, BACKGROUND_SIZE)
+
+fog = pygame.transform.scale(fog, BACKGROUND_SIZE)
+
 def enemy1(x, y):
 
     collision_rect = pygame.Rect(
@@ -264,6 +315,7 @@ def enemy1(x, y):
         "sprite_offset_x": -20,
         "sprite_offset_y": -35,
         "animations": enemy1_animations,
+        "flipped_animations": enemy1_flipped_animations,
         "current_animation": "idle",
         "frame_index": 0,
         "animation_speed": 0.05,
@@ -306,6 +358,7 @@ def enemy2(x, y):
         "sprite_offset_x": -22,
         "sprite_offset_y": -13,
         "animations": enemy2_animations,
+        "flipped_animations": enemy2_flipped_animations,
         "current_animation": "idle",
         "frame_index": 0,
         "animation_speed": 0.04,
@@ -342,16 +395,6 @@ def load_chapter_1():
     bg1_objects = [
 
         {
-            "image": forest2,
-            "x": 2843,
-            "y": -90,
-            "w": 1448,
-            "h": 820,
-            "parallax_x": 0.2,
-            "parallax_y": 0.04
-        },
-
-        {
             "image": forest1,
             "x": -50,
             "y": -90,
@@ -381,6 +424,146 @@ def load_chapter_1():
             "parallax_y": 0.04
         },
 
+        {
+            "image": forest1,
+            "x": 4291,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.2,
+            "parallax_y": 0.04
+        },
+
+        {
+            "image": forest2,
+            "x": -50,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.25,
+            "parallax_y": 0.05
+        },
+
+        {
+            "image": forest2,
+            "x": 1395,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.25,
+            "parallax_y": 0.05
+        },
+
+        {
+            "image": forest2,
+            "x": 2843,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.25,
+            "parallax_y": 0.05
+        },
+
+        {
+            "image": forest2,
+            "x": 4291,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.25,
+            "parallax_y": 0.05
+        },
+
+        {
+            "image": forest3,
+            "x": -50,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.3,
+            "parallax_y": 0.06
+        },
+
+        {
+            "image": forest3,
+            "x": 1395,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.3,
+            "parallax_y": 0.06
+        },
+
+        {
+            "image": forest3,
+            "x": 2843,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.3,
+            "parallax_y": 0.06
+        },
+
+        {
+            "image": forest3,
+            "x": 4291,
+            "y": -90,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.3,
+            "parallax_y": 0.06
+        },
+
+        {
+            "image": forest4,
+            "x": -50,
+            "y": -105,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.35,
+            "parallax_y": 0.07
+        },
+
+        {
+            "image": forest4,
+            "x": 1395,
+            "y": -105,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.35,
+            "parallax_y": 0.07
+        },
+
+        {
+            "image": forest4,
+            "x": 2843,
+            "y": -105,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.35,
+            "parallax_y": 0.07
+        },
+
+        {
+            "image": forest4,
+            "x": 4291,
+            "y": -105,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.35,
+            "parallax_y": 0.07
+        },
+
+        {
+            "image": forest4,
+            "x": 5739,
+            "y": -105,
+            "w": 1448,
+            "h": 820,
+            "parallax_x": 0.35,
+            "parallax_y": 0.07
+        },
+
     ]
 
     # 신사
@@ -400,7 +583,15 @@ def load_chapter_1():
         enemy1(6200, 550),
     ]
 
-    return platforms, walls, heal_objects, enemies, bg1_objects
+    fog_objects = [
+        {
+            "image": fog,
+            "w": 1448,
+            "h": 820
+        }
+    ]
+
+    return platforms, walls, heal_objects, enemies, bg1_objects, fog_objects
 
 
 def load_chapter_2():
@@ -426,9 +617,31 @@ def load_chapter_2():
         enemy1(3100, 200),
     ]
 
-    return platforms, walls, heal_objects, enemies
+    bg1_objects = []
+    fog_objects = []
 
-platforms, walls, heal_objects, enemies, bg1_objects = load_chapter_1()
+    return platforms, walls, heal_objects, enemies, bg1_objects, fog_objects
+
+
+def load_chapter_3():
+
+    platforms = []
+    walls = []
+    heal_objects = []
+    enemies = []
+
+    (
+        _,
+        _,
+        _,
+        _,
+        bg1_objects,
+        fog_objects
+    ) = load_chapter_1()
+
+    return platforms, walls, heal_objects, enemies, bg1_objects, fog_objects
+
+platforms, walls, heal_objects, enemies, bg1_objects, fog_objects = load_chapter_1()
 
 
 player_rect = pygame.Rect(100, 455, 60, 180)
@@ -440,6 +653,7 @@ idle_animation_speed = 0.1
 run_animation_speed = 0.2
 attack_animation_speed = 0.4
 air_attack_animation_speed = 0.2
+knockback_animation_speed = 0.18
 
 vel_y = 0
 
@@ -483,6 +697,7 @@ air_attack_used = False
 
 player_invincible = 0
 player_hitstun = 0
+player_knockback_velocity = 0
 
 fade_alpha = 0
 fading = False
@@ -528,6 +743,11 @@ while running:
 
         elif player_animation in ("jump", "down"):
             player_frame_index = 0
+
+        elif player_animation == "knockback":
+            player_frame_index += knockback_animation_speed
+            if player_frame_index >= len(animation):
+                player_frame_index = len(animation) - 1
 
         if player_frame_index >= len(animation):
             player_frame_index = 0
@@ -936,10 +1156,27 @@ while running:
                 player_health -= enemy["damage"]
 
                 # 무적 시간
-                player_invincible = 100
+                player_invincible = 70
 
                 # 경직
-                player_hitstun = 45
+                player_hitstun = 25
+                player_animation = "knockback"
+                player_frame_index = 0
+                attacking = False
+                combo_stage = 0
+                combo_window = False
+                combo_input = False
+                combo_timer = 0
+                attack_timer = 0
+                attack_hitbox = None
+
+                knockback_power = 14
+                if player_rect.centerx < enemy["rect"].centerx:
+                    player_knockback_velocity = -knockback_power
+                    player_facing = 1
+                else:
+                    player_knockback_velocity = knockback_power
+                    player_facing = -1
 
             if player_health < 0:
                 player_health = 0
@@ -1029,6 +1266,13 @@ while running:
                 player_animation = new_animation
                 player_frame_index = 0
 
+    elif player_hitstun > 0:
+        dx = int(player_knockback_velocity)
+        player_knockback_velocity *= 0.86
+
+        if abs(player_knockback_velocity) < 0.2:
+            player_knockback_velocity = 0
+
     # =====================
     # X 이동
     # =====================
@@ -1060,6 +1304,16 @@ while running:
 
     elif (
         current_chapter == 2
+        and player_rect.right >= WORLD_WIDTH
+        and not fading
+    ):
+        fading = True
+        chapter_transition = True
+        fade_direction = 1
+        next_chapter = 3
+
+    elif (
+        current_chapter == 2
         and player_rect.left <= 0
         and not fading
     ):
@@ -1067,6 +1321,16 @@ while running:
         chapter_transition = True
         fade_direction = 1
         next_chapter = 1
+
+    elif (
+        current_chapter == 3
+        and player_rect.left <= 0
+        and not fading
+    ):
+        fading = True
+        chapter_transition = True
+        fade_direction = 1
+        next_chapter = 2
 
     # =====================
     # Y 이동 준비
@@ -1161,7 +1425,7 @@ while running:
 
                 vel_y = 0
 
-    if not attacking:
+    if not attacking and player_hitstun <= 0:
 
         if not on_ground:
 
@@ -1204,6 +1468,7 @@ while running:
 
             fade_alpha = 255
 
+            previous_chapter = current_chapter
             current_chapter = next_chapter
 
             if current_chapter == 1:
@@ -1212,7 +1477,9 @@ while running:
                     platforms,
                     walls,
                     heal_objects,
-                    enemies
+                    enemies,
+                    bg1_objects,
+                    fog_objects
                 ) = load_chapter_1()
 
                 WORLD_WIDTH = CHAPTER_WIDTHS[1]
@@ -1222,18 +1489,44 @@ while running:
 
                 camera_x = WORLD_WIDTH - WIDTH
 
+            elif current_chapter == 2:
+
+                (
+                    platforms,
+                    walls,
+                    heal_objects,
+                    enemies,
+                    bg1_objects,
+                    fog_objects
+                ) = load_chapter_2()
+
+                WORLD_WIDTH = CHAPTER_WIDTHS[2]
+
+                if previous_chapter == 3:
+                    player_rect.x = CHAPTER_SPAWN[2]["right"]
+                else:
+                    player_rect.x = CHAPTER_SPAWN[2]["left"]
+                player_rect.y = 455
+
+                if previous_chapter == 3:
+                    camera_x = WORLD_WIDTH - WIDTH
+                else:
+                    camera_x = 0
+
             else:
 
                 (
                     platforms,
                     walls,
                     heal_objects,
-                    enemies
-                ) = load_chapter_2()
+                    enemies,
+                    bg1_objects,
+                    fog_objects
+                ) = load_chapter_3()
 
-                WORLD_WIDTH = CHAPTER_WIDTHS[2]
+                WORLD_WIDTH = CHAPTER_WIDTHS[3]
 
-                player_rect.x = CHAPTER_SPAWN[2]["left"]
+                player_rect.x = CHAPTER_SPAWN[3]["left"]
                 player_rect.y = 455
 
                 camera_x = 0
@@ -1261,13 +1554,7 @@ while running:
     # 배경
     for obj in bg1_objects:
 
-        image = pygame.transform.scale(
-            obj["image"],
-            (
-                obj["w"],
-                obj["h"]
-            )
-        )
+        image = obj["image"]
 
         draw_x = (
             obj["x"]
@@ -1295,7 +1582,7 @@ while running:
             ground.x - camera_x,
             ground.y - camera_y,
             ground.width,
-            ground.height
+            300#ground.height
         )
     )
 
@@ -1343,20 +1630,18 @@ while running:
     # 적
     for enemy in enemies:
 
-        animation = enemy["animations"][
-            enemy["current_animation"]
-        ]
+        if enemy["direction"] == 1:
+            animation = enemy["flipped_animations"][
+                enemy["current_animation"]
+            ]
+        else:
+            animation = enemy["animations"][
+                enemy["current_animation"]
+            ]
 
         image = animation[
             int(enemy["frame_index"])
         ]
-
-        if enemy["direction"] == 1:
-            image = pygame.transform.flip(
-                image,
-                True,
-                False
-            )
 
         screen.blit(
             image,
@@ -1405,18 +1690,18 @@ while running:
         len(player_animations[player_animation]) - 1
     )
 
-    player_image = player_animations[
-        player_animation
-    ][
-        frame
-    ]
-    
     if player_facing == -1:
-        player_image = pygame.transform.flip(
-            player_image,
-            True,
-            False
-        )
+        player_image = player_flipped_animations[
+            player_animation
+        ][
+            frame
+        ]
+    else:
+        player_image = player_animations[
+            player_animation
+        ][
+            frame
+        ]
 
     draw_x = (
         player_rect.centerx
@@ -1440,17 +1725,6 @@ while running:
             draw_x - camera_x,
             draw_y - camera_y
         )
-    )
-
-    #안개
-    fog_image = pygame.transform.scale(
-        fog,
-        (WIDTH, HEIGHT)
-    )
-
-    screen.blit(
-        fog_image,
-        (0,0)
     )
 
     #허트박스
@@ -1479,6 +1753,21 @@ while running:
                 attack_hitbox.height
             ),
             2
+        )
+
+    for obj in fog_objects:
+
+        image = obj["image"]
+
+        draw_x = (WIDTH - obj["w"]) // 2
+        draw_y = (HEIGHT - obj["h"]) // 2
+
+        screen.blit(
+            image,
+            (
+                draw_x,
+                draw_y
+            )
         )
 
     # =====================
@@ -1536,6 +1825,17 @@ while running:
                 player_rect.y - 50 - camera_y
             )
         )
+
+    fps_text = fps_font.render(
+        f"FPS {int(clock.get_fps())}",
+        True,
+        (255, 255, 255)
+    )
+
+    screen.blit(
+        fps_text,
+        (30, 65)
+    )
 
     if fade_alpha > 0:
 
