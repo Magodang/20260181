@@ -97,11 +97,22 @@ PLATFORM_COLOR = (90, 90, 90)
 WALL_COLOR = (130, 130, 130)
 PLAYER_COLOR = (220, 220, 220)
 ENEMY_COLOR = (170, 170, 170)
+BOSS_COLOR = (150, 40, 40)
+BOSS_WALL_COLOR = (220, 30, 30)
+
+BOSS_BOX_IMAGE = pygame.Surface((70, 180), pygame.SRCALPHA)
+BOSS_BOX_IMAGE.fill(BOSS_COLOR)
+BOSS_ANIMATIONS = {
+    "idle": [BOSS_BOX_IMAGE]
+}
+BOSS_FLIPPED_ANIMATIONS = {
+    "idle": [BOSS_BOX_IMAGE]
+}
 
 current_chapter = 1
 
 CHAPTER_WIDTHS = {
-    1: 16000,
+    1: 12000,
     2: 6000,
     3: 20000,
 }
@@ -110,7 +121,7 @@ CHAPTER_SPAWN = {
 
     1: {
         "left": 200,
-        "right": 15700,
+        "right": 11700,
     },
 
     2: {
@@ -376,6 +387,40 @@ def enemy2(x, y):
         "hitstun": 0
     }
 
+
+def miniboss1(x, y):
+
+    collision_rect = pygame.Rect(
+        x,
+        y,
+        70,
+        180,
+    )
+
+    return {
+        "type": "miniboss1",
+        "x": float(x),
+        "rect": collision_rect,
+        "hurtbox": collision_rect.copy(),
+        "sprite_offset_x": 0,
+        "sprite_offset_y": 0,
+        "animations": BOSS_ANIMATIONS,
+        "flipped_animations": BOSS_FLIPPED_ANIMATIONS,
+        "current_animation": "idle",
+        "frame_index": 0,
+        "animation_speed": 0,
+        "health": 400,
+        "damage": 15,
+        "dash_damage": 30,
+        "direction": -1,
+        "hitstun": 0,
+        "active": False,
+        "state": "waiting",
+        "pattern_timer": 0,
+        "dash_timer": 0,
+        "dash_speed": 22,
+    }
+
 def load_chapter_1():
 
     # 플랫폼
@@ -583,6 +628,11 @@ def load_chapter_1():
         enemy1(6200, 550),
     ]
 
+    if not chapter1_miniboss_defeated:
+        enemies.append(
+            miniboss1(10500, 460)
+        )
+
     fog_objects = [
         {
             "image": fog,
@@ -640,6 +690,8 @@ def load_chapter_3():
     ) = load_chapter_1()
 
     return platforms, walls, heal_objects, enemies, bg1_objects, fog_objects
+
+chapter1_miniboss_defeated = False
 
 platforms, walls, heal_objects, enemies, bg1_objects, fog_objects = load_chapter_1()
 
@@ -704,6 +756,8 @@ fading = False
 fade_direction = 1
 next_chapter = None
 chapter_transition = False
+boss_fight_started = False
+boss_walls = []
 
 # =========================
 # 게임 루프
@@ -728,6 +782,31 @@ while running:
     idle_animation_speed = 0.1
     run_animation_speed = 0.2
     attack_animation_speed = 0.4
+
+    chapter1_boss_alive = any(
+        enemy["type"] == "miniboss1"
+        for enemy in enemies
+    )
+
+    if (
+        current_chapter == 1
+        and chapter1_boss_alive
+        and player_rect.x > 9500
+    ):
+        boss_fight_started = True
+
+    if current_chapter != 1 or not chapter1_boss_alive:
+        boss_fight_started = False
+
+    if boss_fight_started:
+        boss_walls = [
+            pygame.Rect(9000, 0, 100, HEIGHT),
+            pygame.Rect(11500, 0, 100, HEIGHT),
+        ]
+    else:
+        boss_walls = []
+
+    collision_walls = walls + boss_walls
 
     animation = player_animations[player_animation]
 
@@ -811,6 +890,9 @@ while running:
     # 적 애니
     # =========================
     for enemy in enemies:
+        if "animations" not in enemy:
+            continue
+
         enemy["frame_index"] += enemy["animation_speed"]
         animation = enemy["animations"][
             enemy["current_animation"]
@@ -834,6 +916,10 @@ while running:
                 enemy["rect"].x - 19,
                 enemy["rect"].y - 15
             )
+
+        elif enemy["type"] == "miniboss1":
+            enemy["hurtbox"].topleft = enemy["rect"].topleft
+            enemy["active"] = boss_fight_started
 
         if enemy["hitstun"] > 0:
             enemy["hitstun"] -= 1
@@ -862,10 +948,17 @@ while running:
             enemy["hurtbox"].x = enemy["rect"].x - 19
             enemy["hurtbox"].y = enemy["rect"].y - 15
 
+        elif enemy["type"] == "miniboss1":
+
+            enemy["hurtbox"].topleft = enemy["rect"].topleft
+
         # =====================
         # 플레이어 인식
         # =====================
-        if abs(distance_x) < enemy["detect_range"]:
+        if enemy["type"] == "miniboss1":
+            enemy["aggro"] = enemy["active"]
+
+        elif abs(distance_x) < enemy["detect_range"]:
             enemy["aggro"] = True
 
         elif abs(distance_x) > enemy["chase_range"]:
@@ -893,7 +986,7 @@ while running:
             # -----------------
             # 바닥 충돌
             # -----------------
-            all_surfaces = [ground] + platforms + walls
+            all_surfaces = [ground] + platforms + collision_walls
 
             for surface in all_surfaces:
 
@@ -910,7 +1003,7 @@ while running:
             # -----------------
             # 벽 충돌
             # -----------------
-            for wall in walls:
+            for wall in collision_walls:
 
                 if enemy_rect.colliderect(wall):
 
@@ -998,7 +1091,7 @@ while running:
                 # -----------------
                 enemy_rect.x += enemy["velocity_x"]
 
-                for wall in walls:
+                for wall in collision_walls:
                     if enemy_rect.colliderect(wall):
                         if enemy["velocity_x"] > 0:
                             enemy_rect.right = wall.left
@@ -1021,7 +1114,7 @@ while running:
                     enemy["velocity_y"] = 0
 
                 # 벽(wall) Y축 충돌
-                for wall in walls:
+                for wall in collision_walls:
                     if enemy_rect.colliderect(wall):
                         if enemy["velocity_y"] > 0:
                             enemy_rect.bottom = wall.top
@@ -1030,6 +1123,74 @@ while running:
                         # 벽에 가로막혔으므로 Y축 속도 초기화
                         enemy["velocity_y"] = 0
                             
+        elif enemy["type"] == "miniboss1":
+
+            if not enemy["active"]:
+                continue
+
+            enemy["pattern_timer"] += 1
+
+            if enemy["state"] == "waiting":
+                if player_rect.centerx >= enemy_rect.centerx:
+                    enemy["direction"] = 1
+                else:
+                    enemy["direction"] = -1
+
+                enemy["x"] += (
+                    0.3
+                    * enemy["direction"]
+                )
+                enemy_rect.x = int(enemy["x"])
+
+                for wall in collision_walls:
+                    if enemy_rect.colliderect(wall):
+                        if enemy["direction"] > 0:
+                            enemy_rect.right = wall.left
+                        else:
+                            enemy_rect.left = wall.right
+
+                        enemy["x"] = float(enemy_rect.x)
+
+                if enemy["pattern_timer"] >= 210:
+                    enemy["state"] = "ready"
+                    enemy["pattern_timer"] = 0
+
+                    if player_rect.centerx >= enemy_rect.centerx:
+                        enemy["direction"] = 1
+                    else:
+                        enemy["direction"] = -1
+
+            elif enemy["state"] == "ready":
+                if enemy["pattern_timer"] >= 30:
+                    enemy["state"] = "dash"
+                    enemy["pattern_timer"] = 0
+                    enemy["dash_timer"] = 25
+
+            elif enemy["state"] == "dash":
+                enemy_rect.x += (
+                    enemy["dash_speed"]
+                    * enemy["direction"]
+                )
+                enemy["x"] = float(enemy_rect.x)
+
+                for wall in collision_walls:
+                    if enemy_rect.colliderect(wall):
+                        if enemy["direction"] > 0:
+                            enemy_rect.right = wall.left
+                        else:
+                            enemy_rect.left = wall.right
+
+                        enemy["x"] = float(enemy_rect.x)
+                        enemy["dash_timer"] = 0
+
+                enemy["dash_timer"] -= 1
+
+                if enemy["dash_timer"] <= 0:
+                    enemy["state"] = "waiting"
+                    enemy["pattern_timer"] = 0
+
+            enemy["hurtbox"].topleft = enemy["rect"].topleft
+
     # =====================
     # 이벤트 처리
     # =====================
@@ -1153,7 +1314,14 @@ while running:
             if player_invincible <= 0:
 
                 # 체력 감소
-                player_health -= enemy["damage"]
+                enemy_damage = enemy["damage"]
+                if (
+                    enemy["type"] == "miniboss1"
+                    and enemy["state"] == "dash"
+                ):
+                    enemy_damage = enemy["dash_damage"]
+
+                player_health -= enemy_damage
 
                 # 무적 시간
                 player_invincible = 70
@@ -1198,24 +1366,34 @@ while running:
                         player_attack_damage
                     )
 
-                    enemy["hitstun"] = 12
-                    knockback_power = 50
+                    if enemy["type"] != "miniboss1":
+                        enemy["hitstun"] = 12
+                        knockback_power = 50
 
-                    if player_rect.centerx < enemy["rect"].centerx:
-                        enemy["rect"].x += knockback_power
-                        
-                        for wall in walls:
-                            if enemy["rect"].colliderect(wall):
-                                enemy["rect"].right = wall.left
-                    else:
-                        enemy["rect"].x -= knockback_power
-                        
-                        for wall in walls:
-                            if enemy["rect"].colliderect(wall):
-                                enemy["rect"].left = wall.right
+                        if player_rect.centerx < enemy["rect"].centerx:
+                            enemy["rect"].x += knockback_power
+                            
+                            for wall in collision_walls:
+                                if enemy["rect"].colliderect(wall):
+                                    enemy["rect"].right = wall.left
+                        else:
+                            enemy["rect"].x -= knockback_power
+                            
+                            for wall in collision_walls:
+                                if enemy["rect"].colliderect(wall):
+                                    enemy["rect"].left = wall.right
 
                     hit_enemies.append(enemy)
         # 체력 0 이하 적 제거
+        if any(
+            enemy["type"] == "miniboss1"
+            and enemy["health"] <= 0
+            for enemy in enemies
+        ):
+            chapter1_miniboss_defeated = True
+            boss_fight_started = False
+            boss_walls = []
+
         enemies = [
             enemy
             for enemy in enemies
@@ -1279,7 +1457,7 @@ while running:
     player_rect.x += dx
 
     # 벽 X 충돌
-    for wall in walls:
+    for wall in collision_walls:
 
         if player_rect.colliderect(wall):
 
@@ -1385,7 +1563,7 @@ while running:
     # =====================
     # 플랫폼 충돌
     # =====================
-    all_surfaces = [ground] + platforms + walls
+    all_surfaces = [ground] + platforms + collision_walls
 
     for surface in all_surfaces:
 
@@ -1404,7 +1582,7 @@ while running:
     # =====================
     # 벽 Y 충돌
     # =====================
-    for wall in walls:
+    for wall in collision_walls:
 
         if player_rect.colliderect(wall):
 
@@ -1606,6 +1784,19 @@ while running:
         pygame.draw.rect(
             screen,
             WALL_COLOR,
+            (
+                wall.x - camera_x,
+                wall.y - camera_y,
+                wall.width,
+                wall.height
+            )
+        )
+
+    for wall in boss_walls:
+
+        pygame.draw.rect(
+            screen,
+            BOSS_WALL_COLOR,
             (
                 wall.x - camera_x,
                 wall.y - camera_y,
