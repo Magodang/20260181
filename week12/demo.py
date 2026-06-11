@@ -99,6 +99,26 @@ PLAYER_COLOR = (220, 220, 220)
 ENEMY_COLOR = (170, 170, 170)
 BOSS_COLOR = (150, 40, 40)
 BOSS_WALL_COLOR = (220, 30, 30)
+ENEMY3_COLOR = (180, 80, 210)
+ENEMY4_COLOR = (210, 120, 70)
+
+ENEMY3_BOX_IMAGE = pygame.Surface((75, 90), pygame.SRCALPHA)
+ENEMY3_BOX_IMAGE.fill(ENEMY3_COLOR)
+ENEMY3_ANIMATIONS = {
+    "idle": [ENEMY3_BOX_IMAGE]
+}
+ENEMY3_FLIPPED_ANIMATIONS = {
+    "idle": [ENEMY3_BOX_IMAGE]
+}
+
+ENEMY4_BOX_IMAGE = pygame.Surface((150, 60), pygame.SRCALPHA)
+ENEMY4_BOX_IMAGE.fill(ENEMY4_COLOR)
+ENEMY4_ANIMATIONS = {
+    "idle": [ENEMY4_BOX_IMAGE]
+}
+ENEMY4_FLIPPED_ANIMATIONS = {
+    "idle": [ENEMY4_BOX_IMAGE]
+}
 
 BOSS_BOX_IMAGE = pygame.Surface((70, 180), pygame.SRCALPHA)
 BOSS_BOX_IMAGE.fill(BOSS_COLOR)
@@ -388,6 +408,133 @@ def enemy2(x, y):
     }
 
 
+def enemy3(x, y):
+
+    enemy3_hitbox_offset_x = 18
+    enemy3_hitbox_offset_y = 18
+    enemy3_hitbox_width = 40
+    enemy3_hitbox_height = 60
+
+    enemy3_hurtbox_offset_x = 0
+    enemy3_hurtbox_offset_y = 0
+    enemy3_hurtbox_width = 75
+    enemy3_hurtbox_height = 90
+
+    collision_rect = pygame.Rect(
+        x + enemy3_hitbox_offset_x,
+        y + enemy3_hitbox_offset_y,
+        enemy3_hitbox_width,
+        enemy3_hitbox_height,
+    )
+
+    hurtbox = pygame.Rect(
+        x + enemy3_hurtbox_offset_x,
+        y + enemy3_hurtbox_offset_y,
+        enemy3_hurtbox_width,
+        enemy3_hurtbox_height,
+    )
+
+    return {
+        "type": "enemy3",
+        "x": float(collision_rect.x),
+        "y": float(collision_rect.y),
+        "rect": collision_rect,
+        "hurtbox": hurtbox,
+        "sprite_offset_x": -enemy3_hitbox_offset_x,
+        "sprite_offset_y": -enemy3_hitbox_offset_y,
+        "hurtbox_offset_x": (
+            enemy3_hurtbox_offset_x
+            - enemy3_hitbox_offset_x
+        ),
+        "hurtbox_offset_y": (
+            enemy3_hurtbox_offset_y
+            - enemy3_hitbox_offset_y
+        ),
+        "animations": ENEMY3_ANIMATIONS,
+        "flipped_animations": ENEMY3_FLIPPED_ANIMATIONS,
+        "current_animation": "idle",
+        "frame_index": 0,
+        "animation_speed": 0.04,
+        "health": 10,
+        "speed": 14,
+        "damage": 15,
+        "direction": 1,
+        "detect_range": 400,
+        "aggro": False,
+        "chase_range": 1000,
+        "velocity_x": 0,
+        "velocity_y": 0,
+        "hitstun": 0,
+        "state": "idle",
+        "pattern_timer": 0,
+        "dash_timer": 0,
+        "dash_x": 0,
+        "dash_y": 0,
+    }
+
+
+def enemy4(x, y):
+
+    enemy4_hitbox_offset_x = 0
+    enemy4_hitbox_offset_y = 0
+    enemy4_hitbox_width = 150
+    enemy4_hitbox_height = 60
+
+    enemy4_hurtbox_offset_x = 0
+    enemy4_hurtbox_offset_y = 0
+    enemy4_hurtbox_width = 150
+    enemy4_hurtbox_height = 60
+
+    collision_rect = pygame.Rect(
+        x + enemy4_hitbox_offset_x,
+        y + enemy4_hitbox_offset_y,
+        enemy4_hitbox_width,
+        enemy4_hitbox_height,
+    )
+
+    hurtbox = pygame.Rect(
+        x + enemy4_hurtbox_offset_x,
+        y + enemy4_hurtbox_offset_y,
+        enemy4_hurtbox_width,
+        enemy4_hurtbox_height,
+    )
+
+    return {
+        "type": "enemy4",
+        "rect": collision_rect,
+        "hurtbox": hurtbox,
+        "sprite_offset_x": -enemy4_hitbox_offset_x,
+        "sprite_offset_y": -enemy4_hitbox_offset_y,
+        "hurtbox_offset_x": (
+            enemy4_hurtbox_offset_x
+            - enemy4_hitbox_offset_x
+        ),
+        "hurtbox_offset_y": (
+            enemy4_hurtbox_offset_y
+            - enemy4_hitbox_offset_y
+        ),
+        "animations": ENEMY4_ANIMATIONS,
+        "flipped_animations": ENEMY4_FLIPPED_ANIMATIONS,
+        "current_animation": "idle",
+        "frame_index": 0,
+        "animation_speed": 0,
+        "health": 30,
+        "speed": 7,
+        "damage": 20,
+        "direction": 1,
+        "start_x": x,
+        "patrol_range": 500,
+        "detect_range": 500,
+        "aggro": False,
+        "chase_range": 700,
+        "vel_x": 0,
+        "vel_y": 0,
+        "hitstun": 0,
+        "gravity": 0.35,
+        "on_ground": False,
+    }
+
+
 def miniboss1(x, y):
 
     collision_rect = pygame.Rect(
@@ -618,7 +765,6 @@ def load_chapter_1():
 
     # 적
     enemies = [
-
         enemy1(3100, 200),
         enemy2(4750, 20),
         enemy2(4820, -100),
@@ -675,10 +821,29 @@ def load_chapter_2():
 
 def load_chapter_3():
 
-    platforms = []
-    walls = []
-    heal_objects = []
-    enemies = []
+    platforms = [
+        pygame.Rect(7460, 220, 240, 20),
+    ]
+
+    walls = [
+        pygame.Rect(1200, 500, 120, 140),
+        pygame.Rect(2200, 460, 2700, 180),
+        pygame.Rect(2500, 280, 2400, 180),
+        pygame.Rect(6000, 500, 120, 140),
+        pygame.Rect(7700, -140, 6700, 780),
+        pygame.Rect(12000, -340, 2000, 200),
+    ]
+    heal_objects = [
+        pygame.Rect(14150, -280, 100, 140),
+    ]
+
+    enemies = [
+        enemy3(1800, 260),
+        enemy3(5200, 160),
+        enemy3(7200, 120),
+        enemy4(3000, 400),
+        enemy4(6400, 580),
+    ]
 
     (
         _,
@@ -709,7 +874,7 @@ knockback_animation_speed = 0.18
 
 vel_y = 0
 
-move_speed = 20
+move_speed = 12
 jump_power = -20
 gravity = 0.8
 on_ground = False
@@ -800,8 +965,8 @@ while running:
 
     if boss_fight_started:
         boss_walls = [
-            pygame.Rect(9000, 0, 100, HEIGHT),
-            pygame.Rect(11500, 0, 100, HEIGHT),
+            pygame.Rect(9000, -1000, 100, 3000),
+            pygame.Rect(11500, -1000, 100, 3000),
         ]
     else:
         boss_walls = []
@@ -917,6 +1082,18 @@ while running:
                 enemy["rect"].y - 15
             )
 
+        elif enemy["type"] == "enemy3":
+            enemy["hurtbox"].topleft = (
+                enemy["rect"].x + enemy["hurtbox_offset_x"],
+                enemy["rect"].y + enemy["hurtbox_offset_y"]
+            )
+
+        elif enemy["type"] == "enemy4":
+            enemy["hurtbox"].topleft = (
+                enemy["rect"].x + enemy["hurtbox_offset_x"],
+                enemy["rect"].y + enemy["hurtbox_offset_y"]
+            )
+
         elif enemy["type"] == "miniboss1":
             enemy["hurtbox"].topleft = enemy["rect"].topleft
             enemy["active"] = boss_fight_started
@@ -948,6 +1125,28 @@ while running:
             enemy["hurtbox"].x = enemy["rect"].x - 19
             enemy["hurtbox"].y = enemy["rect"].y - 15
 
+        elif enemy["type"] == "enemy3":
+
+            enemy["hurtbox"].x = (
+                enemy["rect"].x
+                + enemy["hurtbox_offset_x"]
+            )
+            enemy["hurtbox"].y = (
+                enemy["rect"].y
+                + enemy["hurtbox_offset_y"]
+            )
+
+        elif enemy["type"] == "enemy4":
+
+            enemy["hurtbox"].x = (
+                enemy["rect"].x
+                + enemy["hurtbox_offset_x"]
+            )
+            enemy["hurtbox"].y = (
+                enemy["rect"].y
+                + enemy["hurtbox_offset_y"]
+            )
+
         elif enemy["type"] == "miniboss1":
 
             enemy["hurtbox"].topleft = enemy["rect"].topleft
@@ -957,6 +1156,21 @@ while running:
         # =====================
         if enemy["type"] == "miniboss1":
             enemy["aggro"] = enemy["active"]
+
+        elif enemy["type"] == "enemy3":
+            distance_sq = (
+                distance_x * distance_x
+                + distance_y * distance_y
+            )
+
+            if distance_sq < enemy["detect_range"] * enemy["detect_range"]:
+                enemy["aggro"] = True
+
+            elif distance_sq > enemy["chase_range"] * enemy["chase_range"]:
+                enemy["aggro"] = False
+                enemy["state"] = "idle"
+                enemy["pattern_timer"] = 0
+                enemy["dash_timer"] = 0
 
         elif abs(distance_x) < enemy["detect_range"]:
             enemy["aggro"] = True
@@ -1046,6 +1260,72 @@ while running:
                 ):
                     enemy["direction"] = -1
 
+        elif enemy["type"] == "enemy4":
+
+            enemy_rect.x += enemy["vel_x"]
+
+            previous_bottom = enemy_rect.bottom
+
+            enemy["vel_y"] += enemy["gravity"]
+            enemy_rect.y += enemy["vel_y"]
+            enemy["on_ground"] = False
+
+            all_surfaces = [ground] + platforms + collision_walls
+
+            for surface in all_surfaces:
+
+                if enemy_rect.colliderect(surface):
+
+                    if (
+                        previous_bottom <= surface.top
+                        and enemy["vel_y"] >= 0
+                    ):
+                        enemy_rect.bottom = surface.top
+                        enemy["vel_y"] = 0
+                        enemy["on_ground"] = True
+
+            for wall in collision_walls:
+
+                if enemy_rect.colliderect(wall):
+
+                    if enemy["vel_x"] > 0:
+                        enemy_rect.right = wall.left
+                        enemy["direction"] = -1
+
+                    elif enemy["vel_x"] < 0:
+                        enemy_rect.left = wall.right
+                        enemy["direction"] = 1
+
+            enemy["vel_x"] = 0
+
+            if enemy["aggro"]:
+
+                if distance_x > 0:
+                    enemy["vel_x"] = enemy["speed"]
+                    enemy["direction"] = 1
+
+                elif distance_x < 0:
+                    enemy["vel_x"] = -enemy["speed"]
+                    enemy["direction"] = -1
+
+            else:
+                enemy["vel_x"] = (
+                    enemy["speed"]
+                    * enemy["direction"]
+                )
+
+                if enemy_rect.x < (
+                    enemy["start_x"]
+                    - enemy["patrol_range"]
+                ):
+                    enemy["direction"] = 1
+
+                if enemy_rect.x > (
+                    enemy["start_x"]
+                    + enemy["patrol_range"]
+                ):
+                    enemy["direction"] = -1
+
         # =====================
         # enemy2 (수정된 충돌 로직)
         # =====================
@@ -1123,6 +1403,94 @@ while running:
                         # 벽에 가로막혔으므로 Y축 속도 초기화
                         enemy["velocity_y"] = 0
                             
+        elif enemy["type"] == "enemy3":
+
+            if enemy["aggro"]:
+
+                if enemy["state"] == "idle":
+                    enemy["state"] = "ready"
+                    enemy["pattern_timer"] = 0
+                    enemy["velocity_x"] = 0
+                    enemy["velocity_y"] = 0
+
+                elif enemy["state"] == "ready":
+                    enemy["pattern_timer"] += 1
+
+                    if player_rect.centerx >= enemy_rect.centerx:
+                        enemy["direction"] = 1
+                    else:
+                        enemy["direction"] = -1
+
+                    if enemy["pattern_timer"] >= 65:
+                        length = max(
+                            1,
+                            (
+                                distance_x * distance_x
+                                + distance_y * distance_y
+                            ) ** 0.5
+                        )
+
+                        enemy["dash_x"] = (
+                            distance_x
+                            / length
+                            * enemy["speed"]
+                        )
+                        enemy["dash_y"] = (
+                            distance_y
+                            / length
+                            * enemy["speed"]
+                        )
+                        enemy["dash_timer"] = 28
+                        enemy["state"] = "dash"
+                        enemy["pattern_timer"] = 0
+
+                elif enemy["state"] == "dash":
+                    enemy["x"] += enemy["dash_x"]
+                    enemy_rect.x = int(enemy["x"])
+
+                    for wall in collision_walls:
+                        if enemy_rect.colliderect(wall):
+                            if enemy["dash_x"] > 0:
+                                enemy_rect.right = wall.left
+                            elif enemy["dash_x"] < 0:
+                                enemy_rect.left = wall.right
+
+                            enemy["x"] = float(enemy_rect.x)
+                            enemy["dash_timer"] = 0
+
+                    enemy["y"] += enemy["dash_y"]
+                    enemy_rect.y = int(enemy["y"])
+
+                    for wall in collision_walls:
+                        if enemy_rect.colliderect(wall):
+                            if enemy["dash_y"] > 0:
+                                enemy_rect.bottom = wall.top
+                            elif enemy["dash_y"] < 0:
+                                enemy_rect.top = wall.bottom
+
+                            enemy["y"] = float(enemy_rect.y)
+                            enemy["dash_timer"] = 0
+
+                    enemy["dash_timer"] -= 1
+
+                    if enemy["dash_timer"] <= 0:
+                        enemy["state"] = "ready"
+                        enemy["pattern_timer"] = 0
+
+            else:
+                enemy["state"] = "idle"
+                enemy["pattern_timer"] = 0
+                enemy["dash_timer"] = 0
+
+            enemy["hurtbox"].x = (
+                enemy["rect"].x
+                + enemy["hurtbox_offset_x"]
+            )
+            enemy["hurtbox"].y = (
+                enemy["rect"].y
+                + enemy["hurtbox_offset_y"]
+            )
+
         elif enemy["type"] == "miniboss1":
 
             if not enemy["active"]:
@@ -1161,7 +1529,7 @@ while running:
                         enemy["direction"] = -1
 
             elif enemy["state"] == "ready":
-                if enemy["pattern_timer"] >= 30:
+                if enemy["pattern_timer"] >= 45:
                     enemy["state"] = "dash"
                     enemy["pattern_timer"] = 0
                     enemy["dash_timer"] = 25
@@ -1376,12 +1744,18 @@ while running:
                             for wall in collision_walls:
                                 if enemy["rect"].colliderect(wall):
                                     enemy["rect"].right = wall.left
+
+                            if enemy["type"] == "enemy3":
+                                enemy["x"] = float(enemy["rect"].x)
                         else:
                             enemy["rect"].x -= knockback_power
                             
                             for wall in collision_walls:
                                 if enemy["rect"].colliderect(wall):
                                     enemy["rect"].left = wall.right
+
+                            if enemy["type"] == "enemy3":
+                                enemy["x"] = float(enemy["rect"].x)
 
                     hit_enemies.append(enemy)
         # 체력 0 이하 적 제거
