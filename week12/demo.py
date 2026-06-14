@@ -1,6 +1,7 @@
 import pygame
 import sys
 import os
+import random
 
 
 def resource_path(relative_path):
@@ -93,6 +94,35 @@ pygame.mixer.music.load(
 )
 pygame.mixer.music.set_volume(0.5)
 pygame.mixer.music.play(-1)
+
+player_swish_sounds = [
+    pygame.mixer.Sound(
+        resource_path(f"week12/assets/sound/swish{i}.wav")
+    )
+    for i in range(1, 5)
+]
+
+for player_swish_sound in player_swish_sounds:
+    player_swish_sound.set_volume(0.6)
+
+player_hit_sounds = [
+    pygame.mixer.Sound(
+        resource_path(f"week12/assets/sound/hit{i}.wav")
+    )
+    for i in range(1, 3)
+]
+
+for player_hit_sound in player_hit_sounds:
+    player_hit_sound.set_volume(0.7)
+
+
+def play_random_swish():
+    random.choice(player_swish_sounds).play()
+
+
+def play_random_hit():
+    random.choice(player_hit_sounds).play()
+
 
 fade_surface = pygame.Surface((WIDTH, HEIGHT))
 fade_surface.fill((0, 0, 0))
@@ -1401,10 +1431,8 @@ def load_chapter_2():
         _,
         _,
         bg1_objects,
-        _
+        fog_objects
     ) = load_chapter_1()
-
-    fog_objects = []
 
     return platforms, walls, heal_objects, enemies, bg1_objects, fog_objects
 
@@ -1627,6 +1655,7 @@ attack_cd = 0
 attack_duration = 30
 attack_timer = 0
 attack_hitbox = None
+show_hitboxes = True
 
 combo_stage = 0
 combo_window = False
@@ -1805,6 +1834,7 @@ while running:
                 if combo_input:
                     combo_stage = 2
                     player_frame_index = float(attack2_frames[0])
+                    play_random_swish()
                     combo_window = False
                     combo_input = False
                     combo_timer = 0
@@ -1829,6 +1859,7 @@ while running:
                 if combo_input:
                     combo_stage = 1
                     player_frame_index = float(attack1_frames[0])
+                    play_random_swish()
                     combo_window = False
                     combo_input = False
                     combo_timer = 0
@@ -2201,6 +2232,7 @@ while running:
                     and enemy1_attack_rect.colliderect(player_rect)
                 ):
                     player_health -= enemy["enemy1_attack_damage"]
+                    play_random_hit()
                     player_health = max(player_health, 0)
                     player_invincible = 70
                     player_hitstun = 25
@@ -2657,6 +2689,7 @@ while running:
                     and enemy_rect.colliderect(player_rect)
                 ):
                     player_health -= enemy["dash_damage"]
+                    play_random_hit()
                     player_health = max(player_health, 0)
                     player_invincible = 6
                     player_hitstun = 20
@@ -2714,6 +2747,7 @@ while running:
                     and miniboss1_attack_rect.colliderect(player_rect)
                 ):
                     player_health -= enemy["attack_damage"]
+                    play_random_hit()
                     player_health = max(player_health, 0)
                     player_invincible = 70
                     player_hitstun = 25
@@ -2871,6 +2905,7 @@ while running:
                         and mini2_attack_rect.colliderect(player_rect)
                     ):
                         player_health -= mini2_attack_damage
+                        play_random_hit()
                         if player_health < 0:
                             player_health = 0
 
@@ -3046,6 +3081,7 @@ while running:
                         and mini3_attack_rect.colliderect(player_rect)
                     ):
                         player_health -= enemy["mini3_attack_damage"]
+                        play_random_hit()
                         player_health = max(player_health, 0)
                         player_invincible = 70
                         player_hitstun = 25
@@ -3381,6 +3417,7 @@ while running:
                         and chapter4_boss_attack_rect.colliderect(player_rect)
                     ):
                         player_health -= chapter4_boss_attack_damage
+                        play_random_hit()
                         player_health = max(player_health, 0)
                         player_invincible = 70
                         player_hitstun = 30
@@ -3453,6 +3490,9 @@ while running:
         # 점프 입력
         if event.type == pygame.KEYDOWN:
 
+            if event.key == pygame.K_m:
+                show_hitboxes = not show_hitboxes
+
             if (
                 event.key == pygame.K_SPACE
                 or event.key == pygame.K_w
@@ -3508,6 +3548,7 @@ while running:
                         attacking = True
                         player_animation = "air_attack"
                         player_frame_index = 0
+                        play_random_swish()
                         attack_timer = 8
                         attack_cd = 20
                         hit_enemies = []
@@ -3533,6 +3574,7 @@ while running:
                         attacking = True
                         player_animation = "attack"
                         player_frame_index = float(draw_frames[0])
+                        play_random_swish()
                         attack_timer = 9999999
                         combo_stage = 1
                         combo_window = False
@@ -3611,6 +3653,7 @@ while running:
                     enemy_damage = enemy["dash_damage"]
 
                 player_health -= enemy_damage
+                play_random_hit()
 
                 # 무적 시간
                 player_invincible = 70
@@ -4356,39 +4399,43 @@ while running:
         )
 
         # 히트박스 보기
-        pygame.draw.rect(
-            screen,
-            (255, 0, 0),
-            (
-                enemy["rect"].x - camera_x,
-                enemy["rect"].y - camera_y,
+        if show_hitboxes:
+            pygame.draw.rect(
+                screen,
+                (255, 0, 0),
                 (
-                    0
-                    if enemy.get("dead", False)
-                    else enemy["rect"].width
+                    enemy["rect"].x - camera_x,
+                    enemy["rect"].y - camera_y,
+                    (
+                        0
+                        if enemy.get("dead", False)
+                        else enemy["rect"].width
+                    ),
+                    (
+                        0
+                        if enemy.get("dead", False)
+                        else enemy["rect"].height
+                    )
                 ),
+                2
+            )
+
+            pygame.draw.rect(
+                screen,
+                (0, 0, 255),
                 (
-                    0
-                    if enemy.get("dead", False)
-                    else enemy["rect"].height
-                )
-            ),
-            2
-        )
+                    enemy["hurtbox"].x - camera_x,
+                    enemy["hurtbox"].y - camera_y,
+                    enemy["hurtbox"].width,
+                    enemy["hurtbox"].height,
+                ),
+                2
+            )
 
-        pygame.draw.rect(
-            screen,
-            (0, 0, 255),
-            (
-                enemy["hurtbox"].x - camera_x,
-                enemy["hurtbox"].y - camera_y,
-                enemy["hurtbox"].width,
-                enemy["hurtbox"].height,
-            ),
-            2
-        )
-
-        if enemy.get("mini2_attack_hitbox") is not None:
+        if (
+            show_hitboxes
+            and enemy.get("mini2_attack_hitbox") is not None
+        ):
             pygame.draw.rect(
                 screen,
                 (255, 220, 0),
@@ -4401,7 +4448,10 @@ while running:
                 3
             )
 
-        if enemy.get("enemy1_attack_hitbox") is not None:
+        if (
+            show_hitboxes
+            and enemy.get("enemy1_attack_hitbox") is not None
+        ):
             pygame.draw.rect(
                 screen,
                 (255, 220, 0),
@@ -4414,7 +4464,7 @@ while running:
                 3
             )
 
-        if enemy.get("attack_hitbox") is not None:
+        if show_hitboxes and enemy.get("attack_hitbox") is not None:
             pygame.draw.rect(
                 screen,
                 (255, 170, 0),
@@ -4427,7 +4477,10 @@ while running:
                 3
             )
 
-        if enemy.get("mini3_attack_hitbox") is not None:
+        if (
+            show_hitboxes
+            and enemy.get("mini3_attack_hitbox") is not None
+        ):
             pygame.draw.rect(
                 screen,
                 (255, 220, 0),
@@ -4440,7 +4493,10 @@ while running:
                 3
             )
 
-        if enemy.get("chapter4_boss_attack_hitbox") is not None:
+        if (
+            show_hitboxes
+            and enemy.get("chapter4_boss_attack_hitbox") is not None
+        ):
             pygame.draw.rect(
                 screen,
                 (255, 180, 0),
@@ -4497,21 +4553,22 @@ while running:
     )
 
     #허트박스
-    pygame.draw.rect(
-        screen,
-        (0, 255, 0),
-        (
-            player_hurtbox.x - camera_x,
-            player_hurtbox.y - camera_y,
-            player_hurtbox.width,
-            player_hurtbox.height
-        ),
-        2
-    )
+    if show_hitboxes:
+        pygame.draw.rect(
+            screen,
+            (0, 255, 0),
+            (
+                player_hurtbox.x - camera_x,
+                player_hurtbox.y - camera_y,
+                player_hurtbox.width,
+                player_hurtbox.height
+            ),
+            2
+        )
         
 
     # 플레이어 공격 히트박스
-    if attack_hitbox:
+    if show_hitboxes and attack_hitbox:
         pygame.draw.rect(
             screen,
             (255, 0, 0),
