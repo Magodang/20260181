@@ -83,17 +83,15 @@ pygame.init()
 WIDTH = 1280
 HEIGHT = 720
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Demo")
+display_surface = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.Surface((WIDTH, HEIGHT)).convert()
+pygame.display.set_caption("괴이야행록")
 
 if not pygame.mixer.get_init():
     pygame.mixer.init()
 
-pygame.mixer.music.load(
-    resource_path("week12/assets/sound/rain.mp3")
-)
-pygame.mixer.music.set_volume(0.5)
-pygame.mixer.music.play(-1)
+MENU_MUSIC_PATH = "week12/assets/sound/menu.mp3"
+GAME_MUSIC_PATH = "week12/assets/sound/rain.mp3"
 
 player_swish_sounds = [
     pygame.mixer.Sound(
@@ -115,13 +113,107 @@ player_hit_sounds = [
 for player_hit_sound in player_hit_sounds:
     player_hit_sound.set_volume(0.7)
 
+player_step_sounds = [
+    pygame.mixer.Sound(
+        resource_path(f"week12/assets/sound/step{i}.wav")
+    )
+    for i in range(1, 3)
+]
+
+for player_step_sound in player_step_sounds:
+    player_step_sound.set_volume(0.5)
+
+interface_hover_sound = pygame.mixer.Sound(
+    resource_path("week12/assets/sound/interface1.wav")
+)
+interface_click_sound = pygame.mixer.Sound(
+    resource_path("week12/assets/sound/interface2.wav")
+)
+enemy_hurt_paths = [
+    resource_path(f"week12/assets/sound/enemyhurt{i}.wav")
+    for i in range(1, 3)
+]
+enemy_hurt_sounds = [
+    pygame.mixer.Sound(path)
+    for path in enemy_hurt_paths
+    if os.path.exists(path)
+]
+
+if not enemy_hurt_sounds:
+    enemy_hurt_sounds = player_hit_sounds.copy()
+giant_walk_sound = pygame.mixer.Sound(
+    resource_path("week12/assets/sound/giantwalk.wav")
+)
+pygame.mixer.set_num_channels(32)
+enemy_hurt_channel = pygame.mixer.Channel(20)
+giant_walk_channel = pygame.mixer.Channel(21)
+
+music_volume = 5
+sfx_volume = 7
+attack_key = pygame.K_o
+interact_key = pygame.K_i
+resolution_options = (
+    (1280, 720),
+    (1366, 768),
+    (1600, 900),
+    (1920, 1080),
+)
+resolution_index = 0
+current_music_path = None
+display_scale = 1.0
+display_offset_x = 0
+display_offset_y = 0
+display_render_width = WIDTH
+display_render_height = HEIGHT
+screen_shake_frames = 0
+screen_shake_intensity = 0
+
+
+def apply_audio_settings():
+    pygame.mixer.music.set_volume(music_volume / 10)
+
+    sound_groups = (
+        (player_swish_sounds, 0.6),
+        (player_hit_sounds, 0.7),
+        (player_step_sounds, 0.5),
+        ([interface_hover_sound], 0.55),
+        ([interface_click_sound], 0.7),
+        (enemy_hurt_sounds, 1.0),
+        ([giant_walk_sound], 0.75),
+    )
+
+    for sounds, base_volume in sound_groups:
+        for sound in sounds:
+            sound.set_volume(base_volume * (sfx_volume / 10))
+
+
+def play_music(path):
+    global current_music_path
+
+    if current_music_path == path:
+        return
+
+    pygame.mixer.music.load(resource_path(path))
+    pygame.mixer.music.play(-1)
+    current_music_path = path
+    apply_audio_settings()
+
 
 def play_random_swish():
     random.choice(player_swish_sounds).play()
 
 
 def play_random_hit():
+    global screen_shake_frames, screen_shake_intensity
+
     random.choice(player_hit_sounds).play()
+    screen_shake_frames = max(screen_shake_frames, 12)
+    screen_shake_intensity = max(screen_shake_intensity, 10)
+
+
+def play_enemy_hit():
+    play_random_swish()
+    enemy_hurt_channel.play(random.choice(enemy_hurt_sounds))
 
 
 fade_surface = pygame.Surface((WIDTH, HEIGHT))
@@ -158,24 +250,6 @@ MINI3_TRIGGER_X = 4300
 MINI3_LEFT_WALL_X = 4000
 MINI3_RIGHT_WALL_X = 6000
 
-ENEMY3_BOX_IMAGE = pygame.Surface((75, 90), pygame.SRCALPHA)
-ENEMY3_BOX_IMAGE.fill(ENEMY3_COLOR)
-ENEMY3_ANIMATIONS = {
-    "idle": [ENEMY3_BOX_IMAGE]
-}
-ENEMY3_FLIPPED_ANIMATIONS = {
-    "idle": [ENEMY3_BOX_IMAGE]
-}
-
-ENEMY4_BOX_IMAGE = pygame.Surface((150, 60), pygame.SRCALPHA)
-ENEMY4_BOX_IMAGE.fill(ENEMY4_COLOR)
-ENEMY4_ANIMATIONS = {
-    "idle": [ENEMY4_BOX_IMAGE]
-}
-ENEMY4_FLIPPED_ANIMATIONS = {
-    "idle": [ENEMY4_BOX_IMAGE]
-}
-
 BOSS_BOX_IMAGE = pygame.Surface((70, 180), pygame.SRCALPHA)
 BOSS_BOX_IMAGE.fill(BOSS_COLOR)
 BOSS_ANIMATIONS = {
@@ -189,7 +263,6 @@ current_chapter = 1
 
 CHAPTER_WIDTHS = {
     1: 12000,
-    2: 6000,
     3: 20000,
     4: 14000,
 }
@@ -199,11 +272,6 @@ CHAPTER_SPAWN = {
     1: {
         "left": 200,
         "right": 11700,
-    },
-
-    2: {
-        "left": 200,
-        "right": 5700,
     },
 
     3: {
@@ -380,6 +448,88 @@ enemy2_animations = {
 enemy2_flipped_animations = {
     name: flip_animation(frames)
     for name, frames in enemy2_animations.items()
+}
+
+enemy3_idle_sheet = SpriteSheet("week12/assets/cha/en3/idle.png")
+enemy3_move_sheet = SpriteSheet("week12/assets/cha/en3/move.png")
+enemy3_attack_sheet = SpriteSheet("week12/assets/cha/en3/attack.png")
+enemy3_death_sheet = SpriteSheet("week12/assets/cha/en3/death.png")
+
+ENEMY3_ANIMATIONS = {
+    "idle": load_animation(
+        enemy3_idle_sheet,
+        64,
+        64,
+        6,
+        scale=3.0
+    ),
+    "move": load_animation(
+        enemy3_move_sheet,
+        64,
+        64,
+        6,
+        scale=3.0
+    ),
+    "attack": load_animation(
+        enemy3_attack_sheet,
+        64,
+        64,
+        9,
+        scale=3.0
+    ),
+    "death": load_animation(
+        enemy3_death_sheet,
+        64,
+        64,
+        6,
+        scale=3.0
+    ),
+}
+
+ENEMY3_FLIPPED_ANIMATIONS = {
+    name: flip_animation(frames)
+    for name, frames in ENEMY3_ANIMATIONS.items()
+}
+
+enemy4_idle_sheet = SpriteSheet("week12/assets/cha/en4/idle.png")
+enemy4_move_sheet = SpriteSheet("week12/assets/cha/en4/move.png")
+enemy4_attack1_sheet = SpriteSheet("week12/assets/cha/en4/attack1.png")
+enemy4_death_sheet = SpriteSheet("week12/assets/cha/en4/death.png")
+
+ENEMY4_ANIMATIONS = {
+    "idle": load_animation(
+        enemy4_idle_sheet,
+        144,
+        128,
+        6,
+        scale=2.0,
+    ),
+    "move": load_animation(
+        enemy4_move_sheet,
+        144,
+        128,
+        8,
+        scale=2.0,
+    ),
+    "attack1": load_animation(
+        enemy4_attack1_sheet,
+        144,
+        128,
+        8,
+        scale=2.0,
+    ),
+    "death": load_animation(
+        enemy4_death_sheet,
+        144,
+        128,
+        15,
+        scale=2.0,
+    ),
+}
+
+ENEMY4_FLIPPED_ANIMATIONS = {
+    name: flip_animation(frames)
+    for name, frames in ENEMY4_ANIMATIONS.items()
 }
 
 miniboss1_idle_sheet = SpriteSheet(
@@ -622,6 +772,16 @@ fog = pygame.image.load(
     resource_path("week12/assets/background/5.png")
 ).convert_alpha()
 
+ground_atlas = pygame.image.load(
+    resource_path("week12/assets/platform/ground.png")
+).convert_alpha()
+ground_top_tile = ground_atlas.subsurface(
+    pygame.Rect(128, 55, 128, 25)
+).copy()
+ground_soil_tile = ground_atlas.subsurface(
+    pygame.Rect(128, 96, 32, 32)
+).copy()
+
 forest1 = pygame.transform.scale(forest1, (620, 320))
 
 forest2 = pygame.transform.scale(forest2, (620, 320))
@@ -772,8 +932,8 @@ def enemy3(x, y):
         "y": float(collision_rect.y),
         "rect": collision_rect,
         "hurtbox": hurtbox,
-        "sprite_offset_x": -enemy3_hitbox_offset_x,
-        "sprite_offset_y": -enemy3_hitbox_offset_y,
+        "sprite_offset_x": -76,
+        "sprite_offset_y": -66,
         "hurtbox_offset_x": (
             enemy3_hurtbox_offset_x
             - enemy3_hitbox_offset_x
@@ -784,9 +944,10 @@ def enemy3(x, y):
         ),
         "animations": ENEMY3_ANIMATIONS,
         "flipped_animations": ENEMY3_FLIPPED_ANIMATIONS,
+        "faces_right": True,
         "current_animation": "idle",
         "frame_index": 0,
-        "animation_speed": 0.04,
+        "animation_speed": 0.14,
         "health": 10,
         "speed": 14,
         "damage": 15,
@@ -802,20 +963,22 @@ def enemy3(x, y):
         "dash_timer": 0,
         "dash_x": 0,
         "dash_y": 0,
+        "dead": False,
+        "death_finished": False,
     }
 
 
 def enemy4(x, y):
 
-    enemy4_hitbox_offset_x = 0
-    enemy4_hitbox_offset_y = 0
-    enemy4_hitbox_width = 150
-    enemy4_hitbox_height = 60
+    enemy4_hitbox_offset_x = 36
+    enemy4_hitbox_offset_y = -22
+    enemy4_hitbox_width = 82
+    enemy4_hitbox_height = 82
 
-    enemy4_hurtbox_offset_x = 0
-    enemy4_hurtbox_offset_y = 0
-    enemy4_hurtbox_width = 150
-    enemy4_hurtbox_height = 60
+    enemy4_hurtbox_offset_x = 27
+    enemy4_hurtbox_offset_y = -31
+    enemy4_hurtbox_width = 100
+    enemy4_hurtbox_height = 100
 
     collision_rect = pygame.Rect(
         x + enemy4_hitbox_offset_x,
@@ -835,8 +998,8 @@ def enemy4(x, y):
         "type": "enemy4",
         "rect": collision_rect,
         "hurtbox": hurtbox,
-        "sprite_offset_x": -enemy4_hitbox_offset_x,
-        "sprite_offset_y": -enemy4_hitbox_offset_y,
+        "sprite_offset_x": -103,
+        "sprite_offset_y": -100,
         "hurtbox_offset_x": (
             enemy4_hurtbox_offset_x
             - enemy4_hitbox_offset_x
@@ -847,12 +1010,13 @@ def enemy4(x, y):
         ),
         "animations": ENEMY4_ANIMATIONS,
         "flipped_animations": ENEMY4_FLIPPED_ANIMATIONS,
+        "faces_right": True,
         "current_animation": "idle",
         "frame_index": 0,
-        "animation_speed": 0,
+        "animation_speed": 0.14,
         "health": 30,
         "speed": 7,
-        "damage": 20,
+        "damage": 0,
         "direction": 1,
         "start_x": x,
         "patrol_range": 500,
@@ -864,6 +1028,24 @@ def enemy4(x, y):
         "hitstun": 0,
         "gravity": 0.35,
         "on_ground": False,
+        "state": "idle",
+        "enemy4_attack_range": 150,
+        "enemy4_attack_damage": 20,
+        "enemy4_attack_has_hit": False,
+        "enemy4_attack_hitbox": None,
+        "enemy4_attack_hitbox_width": 160,
+        "enemy4_attack_hitbox_height": 110,
+        "enemy4_attack_right_x_offset": 45,
+        "enemy4_attack_left_x_offset": -125,
+        "enemy4_attack_y_offset": -10,
+        "enemy4_recovery_timer": 0,
+        "enemy4_recovery_duration": 30,
+        "enemy4_explosion_damage": 15,
+        "enemy4_explosion_has_hit": False,
+        "enemy4_explosion_hitbox_width": 500,
+        "enemy4_explosion_hitbox_height": 360,
+        "dead": False,
+        "death_finished": False,
     }
 
 
@@ -915,6 +1097,8 @@ def miniboss1(x, y):
         "attack_right_x_offset": 110,
         "attack_left_x_offset": -280,
         "attack_y_offset": 0,
+        "giant_step_timer": 0,
+        "giant_step_interval": 32,
         "dead": False,
         "death_finished": False,
     }
@@ -1072,6 +1256,8 @@ def chapter4_boss(x, y):
         "chapter4_boss_waa_knockback_done": False,
         "chapter4_boss_waa_hold_timer": 0,
         "chapter4_boss_waa_hold_duration": 18,
+        "giant_step_timer": 0,
+        "giant_step_interval": 28,
         "dead": False,
         "death_finished": False,
         "vel_x": 0,
@@ -1130,6 +1316,8 @@ def mini3(x, y):
         "mini3_attack_right_x_offset": 130,
         "mini3_attack_left_x_offset": -240,
         "mini3_attack_y_offset": 60,
+        "mini3_summon_timer": 0,
+        "mini3_summon_interval": 600,
         "dead": False,
         "death_finished": False,
         "vel_x": 0,
@@ -1402,7 +1590,7 @@ def load_chapter_1():
     return platforms, walls, heal_objects, enemies, bg1_objects, fog_objects
 
 
-def load_chapter_2():
+def _removed_chapter_map():
 
     # 플랫폼
     platforms = [
@@ -1459,8 +1647,16 @@ def load_chapter_3():
         enemy3(1800, 260),
         enemy3(5200, 160),
         enemy3(7200, 120),
+        enemy3(8600, -360),
+        enemy3(10500, -420),
+        enemy3(12600, -560),
+        enemy3(14600, 180),
+        enemy3(16200, 120),
         enemy4(3000, 400),
         enemy4(6400, 580),
+        enemy4(14800, 580),
+        enemy4(15800, 580),
+        enemy4(16800, 580),
     ]
 
     if not chapter3_miniboss_defeated:
@@ -1528,9 +1724,6 @@ def load_chapter_data(chapter):
 
     if chapter == 1:
         return load_chapter_1()
-
-    if chapter == 2:
-        return load_chapter_2()
 
     if chapter == 3:
         return load_chapter_3()
@@ -1655,7 +1848,10 @@ attack_cd = 0
 attack_duration = 30
 attack_timer = 0
 attack_hitbox = None
-show_hitboxes = True
+show_hitboxes = False
+step_sound_index = 0
+next_step_sound_time = 0
+step_sound_interval = 280
 
 combo_stage = 0
 combo_window = False
@@ -1688,10 +1884,823 @@ chapter4_boss_fight_started = False
 boss_walls = []
 ending = False
 
+
+menu_background = pygame.transform.smoothscale(
+    forest1,
+    (WIDTH, HEIGHT),
+)
+menu_title_font = pygame.font.SysFont("malgungothic", 78, bold=True)
+menu_heading_font = pygame.font.Font(None, 48)
+menu_button_font = pygame.font.Font(None, 38)
+menu_label_font = pygame.font.Font(None, 30)
+game_over_title_font = pygame.font.SysFont(
+    "malgungothic",
+    68,
+    bold=True,
+)
+
+
+def update_display_viewport():
+    global display_scale, display_offset_x, display_offset_y
+    global display_render_width, display_render_height
+
+    display_width, display_height = display_surface.get_size()
+    display_scale = min(
+        display_width / WIDTH,
+        display_height / HEIGHT,
+    )
+    display_render_width = int(WIDTH * display_scale)
+    display_render_height = int(HEIGHT * display_scale)
+    display_offset_x = (
+        display_width - display_render_width
+    ) // 2
+    display_offset_y = (
+        display_height - display_render_height
+    ) // 2
+
+
+def set_resolution(index):
+    global display_surface, resolution_index
+
+    resolution_index = index % len(resolution_options)
+    display_surface = pygame.display.set_mode(
+        resolution_options[resolution_index]
+    )
+
+    update_display_viewport()
+
+
+def screen_to_game_pos(position):
+    x, y = position
+    return (
+        int((x - display_offset_x) / display_scale),
+        int((y - display_offset_y) / display_scale),
+    )
+
+
+def present_frame():
+    global screen_shake_frames, screen_shake_intensity
+
+    shake_x = 0
+    shake_y = 0
+
+    if screen_shake_frames > 0:
+        shake_x = random.randint(
+            -screen_shake_intensity,
+            screen_shake_intensity,
+        )
+        shake_y = random.randint(
+            -screen_shake_intensity,
+            screen_shake_intensity,
+        )
+        screen_shake_frames -= 1
+
+        if screen_shake_frames <= 0:
+            screen_shake_intensity = 0
+
+    if (
+        display_render_width == WIDTH
+        and display_render_height == HEIGHT
+    ):
+        scaled_frame = screen
+    else:
+        scaled_frame = pygame.transform.smoothscale(
+            screen,
+            (display_render_width, display_render_height),
+        )
+    display_surface.fill((0, 0, 0))
+    display_surface.blit(
+        scaled_frame,
+        (
+            display_offset_x + int(shake_x * display_scale),
+            display_offset_y + int(shake_y * display_scale),
+        ),
+    )
+    pygame.display.flip()
+
+
+update_display_viewport()
+
+
+def draw_forest_terrain(rect, top_only=False):
+    screen_left = int(rect.left - camera_x)
+    screen_top = int(rect.top - camera_y)
+    screen_right = int(rect.right - camera_x)
+    screen_bottom = int(rect.bottom - camera_y)
+
+    if (
+        screen_right <= 0
+        or screen_left >= WIDTH
+        or screen_bottom <= 0
+        or screen_top >= HEIGHT
+    ):
+        return
+
+    visible_left = max(0, screen_left)
+    visible_right = min(WIDTH, screen_right)
+    visible_top = max(0, screen_top)
+    visible_bottom = min(HEIGHT, screen_bottom)
+
+    if not top_only:
+        pygame.draw.rect(
+            screen,
+            (42, 34, 9),
+            (
+                visible_left,
+                visible_top,
+                visible_right - visible_left,
+                visible_bottom - visible_top,
+            ),
+        )
+
+        soil_start_y = screen_top + ground_top_tile.get_height()
+        tile_start_x = (
+            screen_left
+            + ((visible_left - screen_left) // 32) * 32
+        )
+        tile_start_y = (
+            soil_start_y
+            + (
+                max(0, visible_top - soil_start_y) // 32
+            ) * 32
+        )
+
+        for draw_y in range(
+            tile_start_y,
+            visible_bottom,
+            ground_soil_tile.get_height(),
+        ):
+            for draw_x in range(
+                tile_start_x,
+                visible_right,
+                ground_soil_tile.get_width(),
+            ):
+                screen.blit(ground_soil_tile, (draw_x, draw_y))
+
+    top_height = min(
+        ground_top_tile.get_height(),
+        rect.height,
+    )
+    tile_start_x = (
+        screen_left
+        + (
+            max(0, visible_left - screen_left)
+            // ground_top_tile.get_width()
+        )
+        * ground_top_tile.get_width()
+    )
+
+    for draw_x in range(
+        tile_start_x,
+        visible_right,
+        ground_top_tile.get_width(),
+    ):
+        draw_width = min(
+            ground_top_tile.get_width(),
+            screen_right - draw_x,
+        )
+
+        if draw_width > 0:
+            screen.blit(
+                ground_top_tile,
+                (draw_x, screen_top),
+                (0, 0, draw_width, top_height),
+            )
+
+
+def draw_menu_background():
+    screen.blit(menu_background, (0, 0))
+
+    shade = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    shade.fill((7, 12, 13, 178))
+    screen.blit(shade, (0, 0))
+
+    pygame.draw.rect(screen, (136, 32, 32), (0, 0, 9, HEIGHT))
+    pygame.draw.line(
+        screen,
+        (192, 155, 77),
+        (70, 115),
+        (470, 115),
+        2,
+    )
+
+
+def draw_menu_button(rect, label, mouse_pos, selected=False):
+    hovered = rect.collidepoint(mouse_pos)
+    active = hovered or selected
+    fill_color = (145, 38, 38) if active else (18, 26, 27)
+    border_color = (224, 188, 103) if active else (94, 105, 98)
+
+    pygame.draw.rect(screen, fill_color, rect, border_radius=6)
+    pygame.draw.rect(
+        screen,
+        border_color,
+        rect,
+        2,
+        border_radius=6,
+    )
+
+    text = menu_button_font.render(label, True, (245, 240, 220))
+    screen.blit(text, text.get_rect(center=rect.center))
+
+
+def draw_volume_bar(label, value, y, mouse_pos):
+    label_text = menu_label_font.render(
+        f"{label}  {value}",
+        True,
+        (232, 229, 213),
+    )
+    screen.blit(label_text, (365, y - 3))
+
+    segment_rects = []
+    for index in range(10):
+        segment_rect = pygame.Rect(570 + index * 39, y, 30, 22)
+        segment_rects.append(segment_rect)
+        filled = index < value
+        hovered = segment_rect.collidepoint(mouse_pos)
+
+        if filled:
+            color = (176, 48, 43) if not hovered else (216, 72, 56)
+        else:
+            color = (42, 51, 50) if not hovered else (73, 83, 77)
+
+        pygame.draw.rect(
+            screen,
+            color,
+            segment_rect,
+            border_radius=3,
+        )
+        pygame.draw.rect(
+            screen,
+            (122, 126, 112),
+            segment_rect,
+            1,
+            border_radius=3,
+        )
+
+    return segment_rects
+
+
+def run_settings_menu():
+    global music_volume, sfx_volume, attack_key, interact_key
+
+    waiting_for_key = None
+    hovered_control = None
+    back_rect = pygame.Rect(70, 620, 180, 56)
+    attack_rect = pygame.Rect(650, 330, 300, 48)
+    interact_rect = pygame.Rect(650, 398, 300, 48)
+    display_rect = pygame.Rect(650, 480, 300, 48)
+
+    while True:
+        mouse_pos = screen_to_game_pos(pygame.mouse.get_pos())
+        bgm_segments = [
+            pygame.Rect(570 + index * 39, 205, 30, 22)
+            for index in range(10)
+        ]
+        sfx_segments = [
+            pygame.Rect(570 + index * 39, 265, 30, 22)
+            for index in range(10)
+        ]
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
+
+            if event.type == pygame.MOUSEMOTION:
+                event_pos = screen_to_game_pos(event.pos)
+                new_hovered_control = None
+
+                for control_name, rect in (
+                    ("back", back_rect),
+                    ("attack", attack_rect),
+                    ("interact", interact_rect),
+                    ("display", display_rect),
+                ):
+                    if rect.collidepoint(event_pos):
+                        new_hovered_control = control_name
+                        break
+
+                if (
+                    new_hovered_control is not None
+                    and new_hovered_control != hovered_control
+                ):
+                    interface_hover_sound.play()
+
+                hovered_control = new_hovered_control
+
+            if event.type == pygame.KEYDOWN:
+                if waiting_for_key is not None:
+                    if event.key != pygame.K_ESCAPE:
+                        if waiting_for_key == "attack":
+                            attack_key = event.key
+                        else:
+                            interact_key = event.key
+                    waiting_for_key = None
+                elif event.key == pygame.K_ESCAPE:
+                    return "back"
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                event_pos = screen_to_game_pos(event.pos)
+
+                if back_rect.collidepoint(event_pos):
+                    interface_click_sound.play()
+                    return "back"
+
+                for index, rect in enumerate(bgm_segments, start=1):
+                    if rect.collidepoint(event_pos):
+                        interface_click_sound.play()
+                        music_volume = index
+                        apply_audio_settings()
+
+                for index, rect in enumerate(sfx_segments, start=1):
+                    if rect.collidepoint(event_pos):
+                        interface_click_sound.play()
+                        sfx_volume = index
+                        apply_audio_settings()
+
+                if attack_rect.collidepoint(event_pos):
+                    interface_click_sound.play()
+                    waiting_for_key = "attack"
+                elif interact_rect.collidepoint(event_pos):
+                    interface_click_sound.play()
+                    waiting_for_key = "interact"
+                elif display_rect.collidepoint(event_pos):
+                    interface_click_sound.play()
+                    set_resolution(resolution_index + 1)
+
+        draw_menu_background()
+
+        heading = menu_heading_font.render(
+            "SETTINGS",
+            True,
+            (245, 237, 210),
+        )
+        screen.blit(heading, (70, 55))
+
+        panel = pygame.Rect(320, 145, 690, 430)
+        pygame.draw.rect(
+            screen,
+            (12, 19, 20, 235),
+            panel,
+            border_radius=8,
+        )
+        pygame.draw.rect(
+            screen,
+            (111, 119, 105),
+            panel,
+            2,
+            border_radius=8,
+        )
+
+        bgm_segments = draw_volume_bar(
+            "BGM",
+            music_volume,
+            205,
+            mouse_pos,
+        )
+        sfx_segments = draw_volume_bar(
+            "SFX",
+            sfx_volume,
+            265,
+            mouse_pos,
+        )
+
+        attack_name = pygame.key.name(attack_key).upper()
+        interact_name = pygame.key.name(interact_key).upper()
+
+        draw_menu_button(
+            attack_rect,
+            (
+                "PRESS A KEY"
+                if waiting_for_key == "attack"
+                else f"ATTACK  {attack_name}"
+            ),
+            mouse_pos,
+            waiting_for_key == "attack",
+        )
+        draw_menu_button(
+            interact_rect,
+            (
+                "PRESS A KEY"
+                if waiting_for_key == "interact"
+                else f"INTERACT  {interact_name}"
+            ),
+            mouse_pos,
+            waiting_for_key == "interact",
+        )
+        draw_menu_button(
+            display_rect,
+            (
+                "RESOLUTION  "
+                f"{resolution_options[resolution_index][0]}"
+                " X "
+                f"{resolution_options[resolution_index][1]}"
+            ),
+            mouse_pos,
+        )
+        draw_menu_button(back_rect, "BACK", mouse_pos)
+
+        present_frame()
+        clock.tick(60)
+
+
+def run_main_menu():
+    play_music(MENU_MUSIC_PATH)
+
+    menu_items = ("START", "SETTINGS", "QUIT")
+    button_rects = [
+        pygame.Rect(75, 300 + index * 82, 330, 60)
+        for index in range(len(menu_items))
+    ]
+    selected_index = 0
+    hovered_index = None
+
+    while True:
+        mouse_pos = screen_to_game_pos(pygame.mouse.get_pos())
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+
+            if event.type == pygame.MOUSEMOTION:
+                event_pos = screen_to_game_pos(event.pos)
+                new_hovered_index = None
+
+                for index, rect in enumerate(button_rects):
+                    if rect.collidepoint(event_pos):
+                        selected_index = index
+                        new_hovered_index = index
+                        break
+
+                if (
+                    new_hovered_index is not None
+                    and new_hovered_index != hovered_index
+                ):
+                    interface_hover_sound.play()
+
+                hovered_index = new_hovered_index
+
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_w, pygame.K_UP):
+                    selected_index = (
+                        selected_index - 1
+                    ) % len(menu_items)
+                elif event.key in (pygame.K_s, pygame.K_DOWN):
+                    selected_index = (
+                        selected_index + 1
+                    ) % len(menu_items)
+                elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    selected_action = menu_items[selected_index]
+                    if selected_action == "START":
+                        interface_click_sound.play()
+                        return True
+                    if selected_action == "SETTINGS":
+                        interface_click_sound.play()
+                        result = run_settings_menu()
+                        if result == "quit":
+                            return False
+                    if selected_action == "QUIT":
+                        interface_click_sound.play()
+                        return False
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                event_pos = screen_to_game_pos(event.pos)
+
+                for index, rect in enumerate(button_rects):
+                    if not rect.collidepoint(event_pos):
+                        continue
+
+                    selected_index = index
+                    selected_action = menu_items[index]
+                    interface_click_sound.play()
+                    if selected_action == "START":
+                        return True
+                    if selected_action == "SETTINGS":
+                        result = run_settings_menu()
+                        if result == "quit":
+                            return False
+                    if selected_action == "QUIT":
+                        return False
+
+        draw_menu_background()
+
+        title = menu_title_font.render(
+            "괴이야행록",
+            True,
+            (244, 235, 203),
+        )
+        subtitle = menu_label_font.render(
+            "A journey beneath the endless rain",
+            True,
+            (172, 181, 164),
+        )
+        screen.blit(title, (70, 135))
+        screen.blit(subtitle, (75, 225))
+
+        for index, (label, rect) in enumerate(
+            zip(menu_items, button_rects)
+        ):
+            draw_menu_button(
+                rect,
+                label,
+                mouse_pos,
+                index == selected_index,
+            )
+
+        present_frame()
+        clock.tick(60)
+
+
+def run_story_sequence():
+    global current_music_path
+
+    story_lines = (
+        "오래전, 인간과 요괴의 세상은 혈계문에 의해 분리되어 있었다.",
+        "혈계문은 대대로 카가미 일족이 지켜왔다.",
+        "그러나 12년 전, 「붉은 달의 밤」.",
+        "혈계문이 열리고, 수많은 요괴들이 인간 세상으로 쏟아져 나왔다.",
+        "카가미 일족은 목숨을 바쳐 문을 닫았지만, 그날의 재앙은 완전히 끝나지 않았다.",
+        "그리고 지금. 다시 봉인이 흔들리고 있다.",
+        "카가미 렌. 가문의 마지막 퇴마사.",
+        "그녀는 혈계문을 지키기 위해 검을 들었다.",
+    )
+    story_font = pygame.font.SysFont("malgungothic", 34)
+    skip_font = pygame.font.Font(None, 25)
+    skip_rect = pygame.Rect(WIDTH - 125, HEIGHT - 58, 88, 34)
+    line_duration = 3000
+    fade_duration = 700
+    sequence_start = pygame.time.get_ticks()
+    skip_hovered = False
+
+    pygame.mixer.music.fadeout(600)
+    current_music_path = None
+
+    wrapped_story_lines = []
+
+    for story_line in story_lines:
+        wrapped_lines = []
+        current_line = ""
+
+        for character in story_line:
+            test_line = current_line + character
+
+            if (
+                current_line
+                and story_font.size(test_line)[0] > 1050
+            ):
+                wrapped_lines.append(current_line)
+                current_line = character
+            else:
+                current_line = test_line
+
+        if current_line:
+            wrapped_lines.append(current_line)
+
+        wrapped_story_lines.append(wrapped_lines)
+
+    while True:
+        elapsed = pygame.time.get_ticks() - sequence_start
+        line_index = elapsed // line_duration
+
+        if line_index >= len(story_lines):
+            return True
+
+        mouse_pos = screen_to_game_pos(pygame.mouse.get_pos())
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+
+            if event.type == pygame.MOUSEMOTION:
+                event_pos = screen_to_game_pos(event.pos)
+                now_hovered = skip_rect.collidepoint(event_pos)
+
+                if now_hovered and not skip_hovered:
+                    interface_hover_sound.play()
+
+                skip_hovered = now_hovered
+
+            if (
+                event.type == pygame.MOUSEBUTTONDOWN
+                and event.button == 1
+                and skip_rect.collidepoint(
+                    screen_to_game_pos(event.pos)
+                )
+            ):
+                interface_click_sound.play()
+                return True
+
+            if (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_ESCAPE
+            ):
+                return True
+
+        line_elapsed = elapsed % line_duration
+
+        if line_elapsed < fade_duration:
+            text_alpha = int(
+                255 * (line_elapsed / fade_duration)
+            )
+        elif line_elapsed > line_duration - fade_duration:
+            text_alpha = int(
+                255
+                * (
+                    (line_duration - line_elapsed)
+                    / fade_duration
+                )
+            )
+        else:
+            text_alpha = 255
+
+        screen.fill((0, 0, 0))
+
+        current_story_lines = wrapped_story_lines[line_index]
+        line_spacing = 52
+        first_line_y = (
+            HEIGHT // 2
+            - ((len(current_story_lines) - 1) * line_spacing) // 2
+        )
+
+        for wrapped_index, wrapped_line in enumerate(
+            current_story_lines
+        ):
+            story_text = story_font.render(
+                wrapped_line,
+                True,
+                (238, 238, 232),
+            )
+            story_text.set_alpha(max(0, min(255, text_alpha)))
+            screen.blit(
+                story_text,
+                story_text.get_rect(
+                    center=(
+                        WIDTH // 2,
+                        first_line_y
+                        + wrapped_index * line_spacing,
+                    )
+                ),
+            )
+
+        skip_active = skip_rect.collidepoint(mouse_pos)
+        skip_color = (
+            (210, 210, 202)
+            if skip_active
+            else (105, 108, 105)
+        )
+        pygame.draw.rect(
+            screen,
+            (18, 18, 18),
+            skip_rect,
+            border_radius=4,
+        )
+        pygame.draw.rect(
+            screen,
+            skip_color,
+            skip_rect,
+            1,
+            border_radius=4,
+        )
+        skip_text = skip_font.render(
+            "SKIP",
+            True,
+            skip_color,
+        )
+        screen.blit(
+            skip_text,
+            skip_text.get_rect(center=skip_rect.center),
+        )
+
+        present_frame()
+        clock.tick(60)
+
+
+def reset_game_for_chapter(chapter, reset_all=False):
+    global chapter1_miniboss_defeated
+    global chapter3_miniboss_defeated
+    global mini3_defeated, chapter4_boss_defeated
+    global player_health, player_invincible, hit_enemies
+    global air_attack_used, next_step_sound_time
+
+    if reset_all:
+        chapter1_miniboss_defeated = False
+        chapter3_miniboss_defeated = False
+        mini3_defeated = False
+        chapter4_boss_defeated = False
+    elif chapter == 1:
+        chapter1_miniboss_defeated = False
+    elif chapter == 3:
+        chapter3_miniboss_defeated = False
+    elif chapter == 4:
+        mini3_defeated = False
+        chapter4_boss_defeated = False
+
+    player_health = player_max_health
+    player_invincible = 0
+    hit_enemies = []
+    air_attack_used = False
+    next_step_sound_time = 0
+    warp_to_chapter(chapter)
+
+
+def run_game_over_menu():
+    frozen_frame = screen.copy()
+    menu_items = ("RETRY", "MAIN MENU", "QUIT")
+    button_rects = [
+        pygame.Rect(465, 360 + index * 70, 350, 52)
+        for index in range(len(menu_items))
+    ]
+    selected_index = 0
+    hovered_index = None
+
+    while True:
+        mouse_pos = screen_to_game_pos(pygame.mouse.get_pos())
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
+
+            if event.type == pygame.MOUSEMOTION:
+                event_pos = screen_to_game_pos(event.pos)
+                new_hovered_index = None
+
+                for index, rect in enumerate(button_rects):
+                    if rect.collidepoint(event_pos):
+                        selected_index = index
+                        new_hovered_index = index
+                        break
+
+                if (
+                    new_hovered_index is not None
+                    and new_hovered_index != hovered_index
+                ):
+                    interface_hover_sound.play()
+
+                hovered_index = new_hovered_index
+
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_w, pygame.K_UP):
+                    selected_index = (
+                        selected_index - 1
+                    ) % len(menu_items)
+                elif event.key in (pygame.K_s, pygame.K_DOWN):
+                    selected_index = (
+                        selected_index + 1
+                    ) % len(menu_items)
+                elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    interface_click_sound.play()
+                    return menu_items[selected_index].lower().replace(
+                        " ",
+                        "_",
+                    )
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                event_pos = screen_to_game_pos(event.pos)
+
+                for index, rect in enumerate(button_rects):
+                    if rect.collidepoint(event_pos):
+                        interface_click_sound.play()
+                        return menu_items[index].lower().replace(" ", "_")
+
+        screen.blit(frozen_frame, (0, 0))
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((5, 7, 8, 210))
+        screen.blit(overlay, (0, 0))
+
+        title = game_over_title_font.render(
+            "GAME OVER",
+            True,
+            (222, 54, 48),
+        )
+        screen.blit(
+            title,
+            title.get_rect(center=(WIDTH // 2, 245)),
+        )
+
+        for index, (label, rect) in enumerate(
+            zip(menu_items, button_rects)
+        ):
+            draw_menu_button(
+                rect,
+                label,
+                mouse_pos,
+                index == selected_index,
+            )
+
+        present_frame()
+        clock.tick(60)
+
+
 # =========================
 # 게임 루프
 # =========================
-running = True
+running = run_main_menu()
+
+if running:
+    running = run_story_sequence()
+
+if running:
+    play_music(GAME_MUSIC_PATH)
 
 while running:
 
@@ -1707,6 +2716,25 @@ while running:
             break
 
     dt = clock.tick(60)
+
+    if player_health <= 0:
+        game_over_action = run_game_over_menu()
+
+        if game_over_action == "retry":
+            reset_game_for_chapter(current_chapter)
+            play_music(GAME_MUSIC_PATH)
+        elif game_over_action == "main_menu":
+            reset_game_for_chapter(1, reset_all=True)
+            if run_main_menu():
+                running = run_story_sequence()
+                if running:
+                    play_music(GAME_MUSIC_PATH)
+            else:
+                running = False
+        else:
+            running = False
+
+        continue
 
     idle_animation_speed = 0.1
     run_animation_speed = 0.2
@@ -1882,6 +2910,9 @@ while running:
         if "animations" not in enemy:
             continue
 
+        if enemy.get("hurt_flash_timer", 0) > 0:
+            enemy["hurt_flash_timer"] -= 1
+
         enemy["frame_index"] += enemy["animation_speed"]
         animation = enemy["animations"][
             enemy["current_animation"]
@@ -1917,6 +2948,41 @@ while running:
             ):
                 enemy["frame_index"] = len(animation) - 1
                 enemy["death_finished"] = True
+            elif (
+                enemy["type"] == "enemy3"
+                and enemy["current_animation"] == "death"
+            ):
+                enemy["frame_index"] = len(animation) - 1
+                enemy["death_finished"] = True
+            elif (
+                enemy["type"] == "enemy3"
+                and enemy["current_animation"] == "attack"
+            ):
+                enemy["state"] = "ready"
+                enemy["current_animation"] = "idle"
+                enemy["frame_index"] = 0
+                enemy["pattern_timer"] = 0
+                enemy["velocity_x"] = 0
+                enemy["velocity_y"] = 0
+            elif (
+                enemy["type"] == "enemy4"
+                and enemy["current_animation"] == "death"
+            ):
+                enemy["frame_index"] = len(animation) - 1
+                enemy["enemy4_attack_hitbox"] = None
+                enemy["death_finished"] = True
+            elif (
+                enemy["type"] == "enemy4"
+                and enemy["current_animation"] == "attack1"
+            ):
+                enemy["state"] = "recovery"
+                enemy["current_animation"] = "idle"
+                enemy["frame_index"] = 0
+                enemy["enemy4_recovery_timer"] = (
+                    enemy["enemy4_recovery_duration"]
+                )
+                enemy["enemy4_attack_has_hit"] = False
+                enemy["enemy4_attack_hitbox"] = None
             elif (
                 enemy["type"] == "enemy1"
                 and enemy["current_animation"] == "attack"
@@ -2015,6 +3081,8 @@ while running:
     # =========================
     # 적 AI
     # =========================
+    pending_enemy_spawns = []
+
     for enemy in enemies:
 
         if enemy["type"] == "enemy1":
@@ -2116,6 +3184,24 @@ while running:
         elif enemy["type"] == "miniboss1":
 
             enemy["hurtbox"].topleft = enemy["rect"].topleft
+
+            miniboss1_is_walking = (
+                enemy["active"]
+                and
+                enemy["state"] in ("waiting", "dash")
+                and enemy["health"] > 0
+            )
+
+            if miniboss1_is_walking:
+                if enemy["giant_step_timer"] <= 0:
+                    giant_walk_channel.play(giant_walk_sound)
+                    enemy["giant_step_timer"] = (
+                        enemy["giant_step_interval"]
+                    )
+                else:
+                    enemy["giant_step_timer"] -= 1
+            else:
+                enemy["giant_step_timer"] = 0
 
         elif enemy["type"] == "miniboss2":
 
@@ -2330,9 +3416,159 @@ while running:
 
         elif enemy["type"] == "enemy4":
 
+            previous_bottom = enemy_rect.bottom
+            enemy["vel_x"] = 0
+
+            if enemy["enemy4_recovery_timer"] > 0:
+                enemy["enemy4_recovery_timer"] -= 1
+
+            if enemy["health"] <= 0:
+                if not enemy["dead"]:
+                    enemy["health"] = 0
+                    enemy["dead"] = True
+                    enemy["state"] = "death"
+                    enemy["current_animation"] = "death"
+                    enemy["frame_index"] = 0
+                    enemy["enemy4_attack_has_hit"] = False
+                    enemy["enemy4_explosion_has_hit"] = False
+                    enemy["hurtbox"].size = (0, 0)
+
+                enemy4_death_frame = int(enemy["frame_index"])
+                enemy4_explosion_active = 8 <= enemy4_death_frame <= 9
+                enemy4_explosion_rect = pygame.Rect(
+                    0,
+                    0,
+                    enemy["enemy4_explosion_hitbox_width"],
+                    enemy["enemy4_explosion_hitbox_height"],
+                )
+                enemy4_explosion_rect.center = enemy_rect.center
+
+                if enemy4_explosion_active:
+                    enemy["enemy4_attack_hitbox"] = (
+                        enemy4_explosion_rect
+                    )
+                else:
+                    enemy["enemy4_attack_hitbox"] = None
+
+                if (
+                    enemy4_explosion_active
+                    and not enemy["enemy4_explosion_has_hit"]
+                    and player_invincible <= 0
+                    and enemy4_explosion_rect.colliderect(player_rect)
+                ):
+                    player_health -= enemy["enemy4_explosion_damage"]
+                    play_random_hit()
+                    player_health = max(player_health, 0)
+                    player_invincible = 70
+                    player_hitstun = 30
+                    player_animation = "knockback"
+                    player_frame_index = 0
+                    attacking = False
+                    attack_hitbox = None
+                    enemy["enemy4_explosion_has_hit"] = True
+
+                    enemy4_explosion_knockback = 24
+                    if player_rect.centerx < enemy_rect.centerx:
+                        player_knockback_velocity = (
+                            -enemy4_explosion_knockback
+                        )
+                        player_facing = 1
+                    else:
+                        player_knockback_velocity = (
+                            enemy4_explosion_knockback
+                        )
+                        player_facing = -1
+
+            elif enemy["state"] == "attack1":
+                enemy4_attack_frame = int(enemy["frame_index"])
+                enemy4_attack_active = enemy4_attack_frame == 5
+
+                if enemy["direction"] == 1:
+                    enemy4_attack_x = (
+                        enemy_rect.x
+                        + enemy["enemy4_attack_right_x_offset"]
+                    )
+                else:
+                    enemy4_attack_x = (
+                        enemy_rect.x
+                        + enemy["enemy4_attack_left_x_offset"]
+                    )
+
+                enemy4_attack_rect = pygame.Rect(
+                    enemy4_attack_x,
+                    enemy_rect.y + enemy["enemy4_attack_y_offset"],
+                    enemy["enemy4_attack_hitbox_width"],
+                    enemy["enemy4_attack_hitbox_height"],
+                )
+
+                if enemy4_attack_active:
+                    enemy["enemy4_attack_hitbox"] = enemy4_attack_rect
+                else:
+                    enemy["enemy4_attack_hitbox"] = None
+
+                if (
+                    enemy4_attack_active
+                    and not enemy["enemy4_attack_has_hit"]
+                    and player_invincible <= 0
+                    and enemy4_attack_rect.colliderect(player_rect)
+                ):
+                    player_health -= enemy["enemy4_attack_damage"]
+                    play_random_hit()
+                    player_health = max(player_health, 0)
+                    player_invincible = 70
+                    player_hitstun = 25
+                    player_animation = "knockback"
+                    player_frame_index = 0
+                    enemy["enemy4_attack_has_hit"] = True
+
+            elif enemy["state"] == "recovery":
+                enemy["enemy4_attack_hitbox"] = None
+                enemy["current_animation"] = "idle"
+
+                if enemy["enemy4_recovery_timer"] <= 0:
+                    enemy["state"] = "idle"
+
+            elif (
+                enemy["aggro"]
+                and abs(distance_x) <= enemy["enemy4_attack_range"]
+            ):
+                if distance_x > 0:
+                    enemy["direction"] = 1
+                elif distance_x < 0:
+                    enemy["direction"] = -1
+
+                enemy["state"] = "attack1"
+                enemy["current_animation"] = "attack1"
+                enemy["frame_index"] = 0
+                enemy["enemy4_attack_has_hit"] = False
+
+            elif enemy["aggro"]:
+                enemy["state"] = "move"
+
+                if distance_x > 0:
+                    enemy["vel_x"] = enemy["speed"]
+                    enemy["direction"] = 1
+                elif distance_x < 0:
+                    enemy["vel_x"] = -enemy["speed"]
+                    enemy["direction"] = -1
+
+                if enemy["current_animation"] != "move":
+                    enemy["current_animation"] = "move"
+                    enemy["frame_index"] = 0
+
+            else:
+                enemy["state"] = "idle"
+                enemy["enemy4_attack_hitbox"] = None
+                enemy["current_animation"] = "idle"
+
             enemy_rect.x += enemy["vel_x"]
 
-            previous_bottom = enemy_rect.bottom
+            for wall in collision_walls:
+                if enemy_rect.colliderect(wall):
+                    if enemy["vel_x"] > 0:
+                        enemy_rect.right = wall.left
+                    elif enemy["vel_x"] < 0:
+                        enemy_rect.left = wall.right
 
             enemy["vel_y"] += enemy["gravity"]
             enemy_rect.y += enemy["vel_y"]
@@ -2352,47 +3588,11 @@ while running:
                         enemy["vel_y"] = 0
                         enemy["on_ground"] = True
 
-            for wall in collision_walls:
-
-                if enemy_rect.colliderect(wall):
-
-                    if enemy["vel_x"] > 0:
-                        enemy_rect.right = wall.left
-                        enemy["direction"] = -1
-
-                    elif enemy["vel_x"] < 0:
-                        enemy_rect.left = wall.right
-                        enemy["direction"] = 1
-
-            enemy["vel_x"] = 0
-
-            if enemy["aggro"]:
-
-                if distance_x > 0:
-                    enemy["vel_x"] = enemy["speed"]
-                    enemy["direction"] = 1
-
-                elif distance_x < 0:
-                    enemy["vel_x"] = -enemy["speed"]
-                    enemy["direction"] = -1
-
-            else:
-                enemy["vel_x"] = (
-                    enemy["speed"]
-                    * enemy["direction"]
+            if enemy["health"] > 0:
+                enemy["hurtbox"].topleft = (
+                    enemy_rect.x + enemy["hurtbox_offset_x"],
+                    enemy_rect.y + enemy["hurtbox_offset_y"],
                 )
-
-                if enemy_rect.x < (
-                    enemy["start_x"]
-                    - enemy["patrol_range"]
-                ):
-                    enemy["direction"] = 1
-
-                if enemy_rect.x > (
-                    enemy["start_x"]
-                    + enemy["patrol_range"]
-                ):
-                    enemy["direction"] = -1
 
         # =====================
         # enemy2 (수정된 충돌 로직)
@@ -2505,13 +3705,26 @@ while running:
                             
         elif enemy["type"] == "enemy3":
 
-            if enemy["aggro"]:
+            if enemy["health"] <= 0:
+                if not enemy["dead"]:
+                    enemy["health"] = 0
+                    enemy["dead"] = True
+                    enemy["state"] = "death"
+                    enemy["current_animation"] = "death"
+                    enemy["frame_index"] = 0
+                    enemy["velocity_x"] = 0
+                    enemy["velocity_y"] = 0
+                    enemy["hurtbox"].size = (0, 0)
+
+            elif enemy["aggro"]:
 
                 if enemy["state"] == "idle":
                     enemy["state"] = "ready"
                     enemy["pattern_timer"] = 0
                     enemy["velocity_x"] = 0
                     enemy["velocity_y"] = 0
+                    enemy["current_animation"] = "idle"
+                    enemy["frame_index"] = 0
 
                 elif enemy["state"] == "ready":
                     enemy["pattern_timer"] += 1
@@ -2540,47 +3753,47 @@ while running:
                             / length
                             * enemy["speed"]
                         )
-                        enemy["dash_timer"] = 28
-                        enemy["state"] = "dash"
+                        enemy["state"] = "attack"
+                        enemy["current_animation"] = "attack"
+                        enemy["frame_index"] = 0
                         enemy["pattern_timer"] = 0
 
-                elif enemy["state"] == "dash":
-                    enemy["x"] += enemy["dash_x"]
-                    enemy_rect.x = int(enemy["x"])
+                elif enemy["state"] == "attack":
+                    enemy3_attack_frame = int(enemy["frame_index"])
+                    enemy3_is_dashing = 3 <= enemy3_attack_frame <= 6
 
-                    for wall in collision_walls:
-                        if enemy_rect.colliderect(wall):
-                            if enemy["dash_x"] > 0:
-                                enemy_rect.right = wall.left
-                            elif enemy["dash_x"] < 0:
-                                enemy_rect.left = wall.right
+                    if enemy3_is_dashing:
+                        enemy["x"] += enemy["dash_x"]
+                        enemy_rect.x = int(enemy["x"])
 
-                            enemy["x"] = float(enemy_rect.x)
-                            enemy["dash_timer"] = 0
+                        for wall in collision_walls:
+                            if enemy_rect.colliderect(wall):
+                                if enemy["dash_x"] > 0:
+                                    enemy_rect.right = wall.left
+                                elif enemy["dash_x"] < 0:
+                                    enemy_rect.left = wall.right
 
-                    enemy["y"] += enemy["dash_y"]
-                    enemy_rect.y = int(enemy["y"])
+                                enemy["x"] = float(enemy_rect.x)
+                                enemy["dash_x"] = 0
 
-                    for wall in collision_walls:
-                        if enemy_rect.colliderect(wall):
-                            if enemy["dash_y"] > 0:
-                                enemy_rect.bottom = wall.top
-                            elif enemy["dash_y"] < 0:
-                                enemy_rect.top = wall.bottom
+                        enemy["y"] += enemy["dash_y"]
+                        enemy_rect.y = int(enemy["y"])
 
-                            enemy["y"] = float(enemy_rect.y)
-                            enemy["dash_timer"] = 0
+                        for wall in collision_walls:
+                            if enemy_rect.colliderect(wall):
+                                if enemy["dash_y"] > 0:
+                                    enemy_rect.bottom = wall.top
+                                elif enemy["dash_y"] < 0:
+                                    enemy_rect.top = wall.bottom
 
-                    enemy["dash_timer"] -= 1
-
-                    if enemy["dash_timer"] <= 0:
-                        enemy["state"] = "ready"
-                        enemy["pattern_timer"] = 0
+                                enemy["y"] = float(enemy_rect.y)
+                                enemy["dash_y"] = 0
 
             else:
                 enemy["state"] = "idle"
                 enemy["pattern_timer"] = 0
                 enemy["dash_timer"] = 0
+                enemy["current_animation"] = "idle"
 
             enemy["hurtbox"].x = (
                 enemy["rect"].x
@@ -3046,6 +4259,27 @@ while running:
 
             elif enemy["active"]:
                 mini3_distance_x = abs(distance_x)
+                enemy["mini3_summon_timer"] += 1
+
+                if (
+                    enemy["mini3_summon_timer"]
+                    >= enemy["mini3_summon_interval"]
+                ):
+                    enemy["mini3_summon_timer"] = 0
+
+                    for summon_direction in (-1, 1):
+                        summoned_enemy = enemy2(
+                            enemy_rect.centerx
+                            + summon_direction * 60,
+                            enemy_rect.centery - 30,
+                        )
+                        summoned_enemy["aggro"] = True
+                        summoned_enemy["direction"] = summon_direction
+                        summoned_enemy["velocity_x"] = (
+                            summon_direction * 10
+                        )
+                        summoned_enemy["velocity_y"] = -8
+                        pending_enemy_spawns.append(summoned_enemy)
 
                 if enemy["state"] == "attack":
                     mini3_attack_frame = int(enemy["frame_index"])
@@ -3476,8 +4710,48 @@ while running:
                     enemy["vel_y"] = 0
                     enemy["on_ground"] = True
 
+            chapter4_boss_is_walking = (
+                enemy["on_ground"]
+                and enemy["vel_x"] != 0
+                and enemy["health"] > 0
+            )
+
+            if chapter4_boss_is_walking:
+                if enemy["giant_step_timer"] <= 0:
+                    giant_walk_channel.play(giant_walk_sound)
+                    enemy["giant_step_timer"] = (
+                        enemy["giant_step_interval"]
+                    )
+                else:
+                    enemy["giant_step_timer"] -= 1
+            else:
+                enemy["giant_step_timer"] = 0
+
             enemy["hurtbox"].topleft = enemy_rect.topleft
             enemy["hurtbox"].size = enemy_rect.size
+
+    for enemy in enemies:
+        enemy_is_dying = (
+            enemy["health"] <= 0
+            or enemy.get("dead", False)
+            or enemy.get("state") == "death"
+            or enemy.get("current_animation") == "death"
+        )
+
+        if enemy_is_dying:
+            enemy["hurtbox"].size = (0, 0)
+
+            for hitbox_name in (
+                "enemy1_attack_hitbox",
+                "attack_hitbox",
+                "mini2_attack_hitbox",
+                "mini3_attack_hitbox",
+                "chapter4_boss_attack_hitbox",
+            ):
+                if hitbox_name in enemy:
+                    enemy[hitbox_name] = None
+
+    enemies.extend(pending_enemy_spawns)
 
     # =====================
     # 이벤트 처리
@@ -3503,15 +4777,12 @@ while running:
                 input_buffer = "jump"
                 input_buffer_timer = input_buffer_time
 
-            if event.key == pygame.K_i:
+            if event.key == interact_key:
                 if can_interact:
                     player_health = player_max_health
 
             if event.key == pygame.K_1:
                 warp_to_chapter(1)
-
-            if event.key == pygame.K_2:
-                warp_to_chapter(2)
 
             if event.key == pygame.K_3:
                 warp_to_chapter(3)
@@ -3533,7 +4804,7 @@ while running:
                 player_rect.y = 455
 
             if (
-                event.key == pygame.K_o
+                event.key == attack_key
                 and player_hitstun <= 0
                 and not chapter_transition
                 and not ending
@@ -3633,6 +4904,7 @@ while running:
             player_animation != "air_attack"
             and enemy["type"] not in (
                 "enemy1",
+                "enemy4",
                 "miniboss1",
                 "miniboss2",
                 "mini3",
@@ -3691,8 +4963,11 @@ while running:
 
             if enemy not in hit_enemies:
 
-                if attack_hitbox.colliderect(
-                    enemy["hurtbox"]
+                if (
+                    enemy["health"] > 0
+                    and enemy.get("state") != "death"
+                    and enemy.get("current_animation") != "death"
+                    and attack_hitbox.colliderect(enemy["hurtbox"])
                 ):
                     damage_to_enemy = player_attack_damage
 
@@ -3703,6 +4978,8 @@ while running:
                         damage_to_enemy *= 0.25
 
                     enemy["health"] -= damage_to_enemy
+                    enemy["hurt_flash_timer"] = 7
+                    play_enemy_hit()
 
                     if enemy["type"] in (
                         "enemy1",
@@ -3794,6 +5071,14 @@ while running:
                     and not enemy.get("death_finished", False)
                 )
                 or (
+                    enemy["type"] == "enemy3"
+                    and not enemy.get("death_finished", False)
+                )
+                or (
+                    enemy["type"] == "enemy4"
+                    and not enemy.get("death_finished", False)
+                )
+                or (
                     enemy["type"] == "miniboss1"
                     and not enemy.get("death_finished", False)
                 )
@@ -3845,6 +5130,8 @@ while running:
             enemy["type"] in (
                 "enemy1",
                 "enemy2",
+                "enemy3",
+                "enemy4",
                 "miniboss1",
                 "miniboss2",
                 "mini3",
@@ -3916,6 +5203,7 @@ while running:
     # =====================
     # X 이동
     # =====================
+    player_x_before_move = player_rect.x
     player_rect.x += dx
 
     # 벽 X 충돌
@@ -3949,16 +5237,6 @@ while running:
         fading = True
         chapter_transition = True
         fade_direction = 1
-        next_chapter = 2
-
-    elif (
-        current_chapter == 2
-        and player_rect.right >= WORLD_WIDTH
-        and not fading
-    ):
-        fading = True
-        chapter_transition = True
-        fade_direction = 1
         next_chapter = 3
 
     elif (
@@ -3972,16 +5250,6 @@ while running:
         next_chapter = 4
 
     elif (
-        current_chapter == 2
-        and player_rect.left <= 0
-        and not fading
-    ):
-        fading = True
-        chapter_transition = True
-        fade_direction = 1
-        next_chapter = 1
-
-    elif (
         current_chapter == 3
         and player_rect.left <= 0
         and not fading
@@ -3989,7 +5257,7 @@ while running:
         fading = True
         chapter_transition = True
         fade_direction = 1
-        next_chapter = 2
+        next_chapter = 1
 
     elif (
         current_chapter == 4
@@ -4120,6 +5388,29 @@ while running:
             player_animation = new_animation
             player_frame_index = 0
 
+    player_is_walking = (
+        on_ground
+        and player_rect.x != player_x_before_move
+        and player_hitstun <= 0
+        and not attacking
+        and not chapter_transition
+        and not ending
+    )
+
+    if player_is_walking:
+        current_step_time = pygame.time.get_ticks()
+
+        if current_step_time >= next_step_sound_time:
+            player_step_sounds[step_sound_index].play()
+            step_sound_index = (step_sound_index + 1) % len(
+                player_step_sounds
+            )
+            next_step_sound_time = (
+                current_step_time + step_sound_interval
+            )
+    else:
+        next_step_sound_time = 0
+
     # =====================
     # 카메라
     # =====================
@@ -4163,30 +5454,6 @@ while running:
                 player_rect.y = 455
 
                 camera_x = WORLD_WIDTH - WIDTH
-
-            elif current_chapter == 2:
-
-                (
-                    platforms,
-                    walls,
-                    heal_objects,
-                    enemies,
-                    bg1_objects,
-                    fog_objects
-                ) = load_chapter_2()
-
-                WORLD_WIDTH = CHAPTER_WIDTHS[2]
-
-                if previous_chapter == 3:
-                    player_rect.x = CHAPTER_SPAWN[2]["right"]
-                else:
-                    player_rect.x = CHAPTER_SPAWN[2]["left"]
-                player_rect.y = 455
-
-                if previous_chapter == 3:
-                    camera_x = WORLD_WIDTH - WIDTH
-                else:
-                    camera_x = 0
 
             elif current_chapter == 3:
 
@@ -4276,44 +5543,22 @@ while running:
         )
 
     # 바닥
-    pygame.draw.rect(
-        screen,
-        GROUND_COLOR,
-        (
-            ground.x - camera_x,
-            ground.y - camera_y,
+    draw_forest_terrain(
+        pygame.Rect(
+            ground.x,
+            ground.y,
             ground.width,
-            300#ground.height
+            300,
         )
     )
 
     # 플랫폼
     for platform in platforms:
-
-        pygame.draw.rect(
-            screen,
-            PLATFORM_COLOR,
-            (
-                platform.x - camera_x,
-                platform.y - camera_y,
-                platform.width,
-                platform.height
-            )
-        )
+        draw_forest_terrain(platform, top_only=True)
 
     # 벽
     for wall in walls:
-
-        pygame.draw.rect(
-            screen,
-            WALL_COLOR,
-            (
-                wall.x - camera_x,
-                wall.y - camera_y,
-                wall.width,
-                wall.height
-            )
-        )
+        draw_forest_terrain(wall)
 
     for wall in boss_walls:
 
@@ -4362,6 +5607,13 @@ while running:
             int(enemy["frame_index"])
         ]
 
+        if enemy.get("hurt_flash_timer", 0) > 0:
+            image = image.copy()
+            image.fill(
+                (255, 255, 255, 0),
+                special_flags=pygame.BLEND_RGB_ADD,
+            )
+
         if enemy.get("use_player_style_draw", False):
             enemy_draw_x = (
                 enemy["rect"].centerx
@@ -4400,6 +5652,12 @@ while running:
 
         # 히트박스 보기
         if show_hitboxes:
+            enemy_is_dying = (
+                enemy["health"] <= 0
+                or enemy.get("dead", False)
+                or enemy.get("state") == "death"
+                or enemy.get("current_animation") == "death"
+            )
             pygame.draw.rect(
                 screen,
                 (255, 0, 0),
@@ -4408,29 +5666,30 @@ while running:
                     enemy["rect"].y - camera_y,
                     (
                         0
-                        if enemy.get("dead", False)
+                        if enemy_is_dying
                         else enemy["rect"].width
                     ),
                     (
                         0
-                        if enemy.get("dead", False)
+                        if enemy_is_dying
                         else enemy["rect"].height
                     )
                 ),
                 2
             )
 
-            pygame.draw.rect(
-                screen,
-                (0, 0, 255),
-                (
-                    enemy["hurtbox"].x - camera_x,
-                    enemy["hurtbox"].y - camera_y,
-                    enemy["hurtbox"].width,
-                    enemy["hurtbox"].height,
-                ),
-                2
-            )
+            if not enemy_is_dying:
+                pygame.draw.rect(
+                    screen,
+                    (0, 0, 255),
+                    (
+                        enemy["hurtbox"].x - camera_x,
+                        enemy["hurtbox"].y - camera_y,
+                        enemy["hurtbox"].width,
+                        enemy["hurtbox"].height,
+                    ),
+                    2
+                )
 
         if (
             show_hitboxes
@@ -4462,6 +5721,22 @@ while running:
                     enemy["enemy1_attack_hitbox"].height,
                 ),
                 3
+            )
+
+        if (
+            show_hitboxes
+            and enemy.get("enemy4_attack_hitbox") is not None
+        ):
+            pygame.draw.rect(
+                screen,
+                (255, 110, 30),
+                (
+                    enemy["enemy4_attack_hitbox"].x - camera_x,
+                    enemy["enemy4_attack_hitbox"].y - camera_y,
+                    enemy["enemy4_attack_hitbox"].width,
+                    enemy["enemy4_attack_hitbox"].height,
+                ),
+                3,
             )
 
         if show_hitboxes and enemy.get("attack_hitbox") is not None:
@@ -4639,7 +5914,7 @@ while running:
         font = pygame.font.Font(None, 40)
 
         text = font.render(
-            "Press I",
+            f"Press {pygame.key.name(interact_key).upper()}",
             True,
             (255,255,255)
         )
@@ -4749,7 +6024,7 @@ while running:
             )
         )
 
-    pygame.display.flip()
+    present_frame()
 
 pygame.quit()
 sys.exit()
