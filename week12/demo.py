@@ -102,6 +102,12 @@ BOSS_WALL_COLOR = (220, 30, 30)
 ENEMY3_COLOR = (180, 80, 210)
 ENEMY4_COLOR = (210, 120, 70)
 
+CHAPTER3_MINIBOSS_SPAWN_X = 19000
+CHAPTER3_MINIBOSS_SPAWN_Y = 400
+CHAPTER3_MINIBOSS_TRIGGER_X = 18000
+CHAPTER3_MINIBOSS_LEFT_WALL_X = 17600
+CHAPTER3_MINIBOSS_RIGHT_WALL_X = 19900
+
 ENEMY3_BOX_IMAGE = pygame.Surface((75, 90), pygame.SRCALPHA)
 ENEMY3_BOX_IMAGE.fill(ENEMY3_COLOR)
 ENEMY3_ANIMATIONS = {
@@ -164,17 +170,17 @@ ground = pygame.Rect(
     80
 )
 
-player_idle_sheet = SpriteSheet("week12/assets/cha/ryo_idle.png")
+player_idle_sheet = SpriteSheet("week12/assets/cha/ryo/ryo_idle.png")
 
-player_run_sheet = SpriteSheet("week12/assets/cha/ryo_run.png")
+player_run_sheet = SpriteSheet("week12/assets/cha/ryo/ryo_run.png")
 
-player_attack_sheet = SpriteSheet("week12/assets/cha/ryo_attack.png")
+player_attack_sheet = SpriteSheet("week12/assets/cha/ryo/ryo_attack.png")
 
-player_air_attack_sheet = SpriteSheet("week12/assets/cha/ryo_jump_attack.png")
+player_air_attack_sheet = SpriteSheet("week12/assets/cha/ryo/ryo_jump_attack.png")
 
-player_jump_sheet = SpriteSheet("week12/assets/cha/ryo_jump.png")
+player_jump_sheet = SpriteSheet("week12/assets/cha/ryo/ryo_jump.png")
 
-player_knockback_sheet = SpriteSheet("week12/assets/cha/ryo_knockback.png")
+player_knockback_sheet = SpriteSheet("week12/assets/cha/ryo/ryo_knockback.png")
 
 down_frame = player_jump_sheet.get_image(
     128, 0,
@@ -281,6 +287,59 @@ enemy2_animations = {
 enemy2_flipped_animations = {
     name: flip_animation(frames)
     for name, frames in enemy2_animations.items()
+}
+
+miniboss2_idle_sheet = SpriteSheet("week12/assets/cha/mini2/Idle.png")
+miniboss2_move_sheet = SpriteSheet("week12/assets/cha/mini2/Move.png")
+miniboss2_attack1_sheet = SpriteSheet("week12/assets/cha/mini2/Attack1.png")
+miniboss2_attack2_sheet = SpriteSheet("week12/assets/cha/mini2/Attack2.png")
+miniboss2_death_sheet = SpriteSheet("week12/assets/cha/mini2/Death.png")
+
+miniboss2_animations = {
+    "idle": load_animation(
+        miniboss2_idle_sheet,
+        192,
+        144,
+        10,
+        scale=3.5
+    ),
+
+    "move": load_animation(
+        miniboss2_move_sheet,
+        192,
+        144,
+        8,
+        scale=3.5
+    ),
+
+    "attack1": load_animation(
+        miniboss2_attack1_sheet,
+        192,
+        144,
+        16,
+        scale=3.5
+    ),
+
+    "attack2": load_animation(
+        miniboss2_attack2_sheet,
+        192,
+        144,
+        10,
+        scale=3.5
+    ),
+
+    "death": load_animation(
+        miniboss2_death_sheet,
+        192,
+        144,
+        6,
+        scale=3.5
+    ),
+}
+
+miniboss2_flipped_animations = {
+    name: flip_animation(frames)
+    for name, frames in miniboss2_animations.items()
 }
 
 forest1 = pygame.image.load(
@@ -568,6 +627,59 @@ def miniboss1(x, y):
         "dash_speed": 22,
     }
 
+
+def miniboss2(x, y):
+
+    miniboss2_hitbox_width = 140
+    miniboss2_hitbox_height = 240
+
+    collision_rect = pygame.Rect(
+        x,
+        y,
+        miniboss2_hitbox_width,
+        miniboss2_hitbox_height,
+    )
+
+    return {
+        "type": "miniboss2",
+        "rect": collision_rect,
+        "hurtbox": collision_rect.copy(),
+        "sprite_offset_x": 0,
+        "sprite_offset_y": -200,
+        "use_player_style_draw": True,
+        "draw_offset_x": -110,
+        "draw_offset_y": 40,
+        "draw_right_offset_x": 220,
+        "draw_left_offset_x": 0,
+        "animations": miniboss2_animations,
+        "flipped_animations": miniboss2_flipped_animations,
+        "faces_right": True,
+        "current_animation": "idle",
+        "frame_index": 0,
+        "animation_speed": 0.14,
+        "health": 400,
+        "speed": 2,
+        "damage": 20,
+        "direction": -1,
+        "hitstun": 0,
+        "active": False,
+        "state": "idle",
+        "attack_cooldown": 0,
+        "attack_has_hit": False,
+        "dead": False,
+        "death_finished": False,
+        "attack1_range": 430,
+        "attack2_range": 190,
+        "keep_distance_min": 230,
+        "keep_distance_max": 360,
+        "attack1_damage": 30,
+        "attack2_damage": 20,
+        "vel_x": 0,
+        "vel_y": 0,
+        "gravity": 0.35,
+        "on_ground": False,
+    }
+
 def load_chapter_1():
 
     # 플랫폼
@@ -845,6 +957,14 @@ def load_chapter_3():
         enemy4(6400, 580),
     ]
 
+    if not chapter3_miniboss_defeated:
+        enemies.append(
+            miniboss2(
+                CHAPTER3_MINIBOSS_SPAWN_X,
+                CHAPTER3_MINIBOSS_SPAWN_Y
+            )
+        )
+
     (
         _,
         _,
@@ -857,6 +977,93 @@ def load_chapter_3():
     return platforms, walls, heal_objects, enemies, bg1_objects, fog_objects
 
 chapter1_miniboss_defeated = False
+chapter3_miniboss_defeated = False
+
+
+def load_chapter_data(chapter):
+
+    if chapter == 1:
+        return load_chapter_1()
+
+    if chapter == 2:
+        return load_chapter_2()
+
+    return load_chapter_3()
+
+
+def warp_to_chapter(chapter, boss_start=False):
+
+    global current_chapter, WORLD_WIDTH, ground
+    global platforms, walls, heal_objects, enemies
+    global bg1_objects, fog_objects, boss_walls, collision_walls
+    global camera_x, camera_y, vel_y, on_ground, extra_jumps
+    global coyote_timer, input_buffer, input_buffer_timer
+    global attacking, attack_timer, attack_hitbox, attack_cd
+    global combo_stage, combo_window, combo_input, combo_timer
+    global player_animation, player_frame_index, player_hitstun
+    global player_knockback_velocity, boss_fight_started
+    global chapter3_boss_fight_started, fading, fade_alpha
+    global chapter_transition, next_chapter
+
+    current_chapter = chapter
+
+    (
+        platforms,
+        walls,
+        heal_objects,
+        enemies,
+        bg1_objects,
+        fog_objects
+    ) = load_chapter_data(chapter)
+
+    WORLD_WIDTH = CHAPTER_WIDTHS[chapter]
+
+    ground = pygame.Rect(
+        0,
+        HEIGHT - 80,
+        WORLD_WIDTH,
+        80
+    )
+
+    if boss_start and chapter == 3:
+        player_rect.x = CHAPTER3_MINIBOSS_TRIGGER_X + 100
+    else:
+        player_rect.x = CHAPTER_SPAWN[chapter]["left"]
+    player_rect.y = 455
+
+    camera_x = 0
+    camera_y = 0
+    vel_y = 0
+    on_ground = False
+    extra_jumps = 1
+    coyote_timer = 0
+    input_buffer = None
+    input_buffer_timer = 0
+
+    attacking = False
+    attack_timer = 0
+    attack_hitbox = None
+    attack_cd = 0
+    combo_stage = 0
+    combo_window = False
+    combo_input = False
+    combo_timer = 0
+
+    player_animation = "idle"
+    player_frame_index = 0
+    player_hitstun = 0
+    player_knockback_velocity = 0
+
+    boss_fight_started = False
+    chapter3_boss_fight_started = False
+    boss_walls = []
+    collision_walls = walls
+
+    fading = False
+    fade_alpha = 0
+    chapter_transition = False
+    next_chapter = None
+
 
 platforms, walls, heal_objects, enemies, bg1_objects, fog_objects = load_chapter_1()
 
@@ -922,6 +1129,7 @@ fade_direction = 1
 next_chapter = None
 chapter_transition = False
 boss_fight_started = False
+chapter3_boss_fight_started = False
 boss_walls = []
 
 # =========================
@@ -953,6 +1161,11 @@ while running:
         for enemy in enemies
     )
 
+    chapter3_boss_alive = any(
+        enemy["type"] == "miniboss2"
+        for enemy in enemies
+    )
+
     if (
         current_chapter == 1
         and chapter1_boss_alive
@@ -963,11 +1176,28 @@ while running:
     if current_chapter != 1 or not chapter1_boss_alive:
         boss_fight_started = False
 
+    if (
+        current_chapter == 3
+        and chapter3_boss_alive
+        and player_rect.x > CHAPTER3_MINIBOSS_TRIGGER_X
+    ):
+        chapter3_boss_fight_started = True
+
+    if current_chapter != 3 or not chapter3_boss_alive:
+        chapter3_boss_fight_started = False
+
     if boss_fight_started:
         boss_walls = [
             pygame.Rect(9000, -1000, 100, 3000),
             pygame.Rect(11500, -1000, 100, 3000),
         ]
+
+    elif chapter3_boss_fight_started:
+        boss_walls = [
+            pygame.Rect(CHAPTER3_MINIBOSS_LEFT_WALL_X, -1000, 100, 3000),
+            pygame.Rect(CHAPTER3_MINIBOSS_RIGHT_WALL_X, -1000, 100, 3000),
+        ]
+
     else:
         boss_walls = []
 
@@ -1063,7 +1293,23 @@ while running:
             enemy["current_animation"]
         ]
         if enemy["frame_index"] >= len(animation):
-            enemy["frame_index"] = 0
+            if (
+                enemy["type"] == "miniboss2"
+                and enemy["current_animation"] == "death"
+            ):
+                enemy["frame_index"] = len(animation) - 1
+                enemy["death_finished"] = True
+            elif (
+                enemy["type"] == "miniboss2"
+                and enemy["current_animation"] in ("attack1", "attack2")
+            ):
+                enemy["state"] = "idle"
+                enemy["current_animation"] = "idle"
+                enemy["frame_index"] = 0
+                enemy["attack_cooldown"] = 45
+                enemy["attack_has_hit"] = False
+            else:
+                enemy["frame_index"] = 0
 
     # =========================
     # 적 AI
@@ -1097,6 +1343,11 @@ while running:
         elif enemy["type"] == "miniboss1":
             enemy["hurtbox"].topleft = enemy["rect"].topleft
             enemy["active"] = boss_fight_started
+
+        elif enemy["type"] == "miniboss2":
+            enemy["hurtbox"].topleft = enemy["rect"].topleft
+            enemy["hurtbox"].size = enemy["rect"].size
+            enemy["active"] = chapter3_boss_fight_started
 
         if enemy["hitstun"] > 0:
             enemy["hitstun"] -= 1
@@ -1151,10 +1402,18 @@ while running:
 
             enemy["hurtbox"].topleft = enemy["rect"].topleft
 
+        elif enemy["type"] == "miniboss2":
+
+            enemy["hurtbox"].topleft = enemy["rect"].topleft
+            enemy["hurtbox"].size = enemy["rect"].size
+
         # =====================
         # 플레이어 인식
         # =====================
         if enemy["type"] == "miniboss1":
+            enemy["aggro"] = enemy["active"]
+
+        elif enemy["type"] == "miniboss2":
             enemy["aggro"] = enemy["active"]
 
         elif enemy["type"] == "enemy3":
@@ -1559,6 +1818,171 @@ while running:
 
             enemy["hurtbox"].topleft = enemy["rect"].topleft
 
+        elif enemy["type"] == "miniboss2":
+
+            if enemy["health"] <= 0:
+                if not enemy["dead"]:
+                    enemy["dead"] = True
+                    enemy["state"] = "death"
+                    enemy["current_animation"] = "death"
+                    enemy["frame_index"] = 0
+                    enemy["vel_x"] = 0
+                    enemy["active"] = False
+
+                enemy["hurtbox"].topleft = enemy["rect"].topleft
+                enemy["hurtbox"].size = enemy["rect"].size
+                continue
+
+            previous_bottom = enemy_rect.bottom
+
+            enemy["vel_y"] += enemy["gravity"]
+            enemy_rect.y += enemy["vel_y"]
+            enemy["on_ground"] = False
+
+            all_surfaces = [ground] + platforms + collision_walls
+
+            for surface in all_surfaces:
+
+                if enemy_rect.colliderect(surface):
+
+                    if (
+                        previous_bottom <= surface.top
+                        and enemy["vel_y"] >= 0
+                    ):
+                        enemy_rect.bottom = surface.top
+                        enemy["vel_y"] = 0
+                        enemy["on_ground"] = True
+
+            enemy["vel_x"] = 0
+
+            if enemy["attack_cooldown"] > 0:
+                enemy["attack_cooldown"] -= 1
+
+            if enemy["active"]:
+                if distance_x > 0:
+                    enemy["direction"] = 1
+
+                elif distance_x < 0:
+                    enemy["direction"] = -1
+
+                abs_distance_x = abs(distance_x)
+
+                if enemy["state"] in ("attack1", "attack2"):
+                    attack_frame = int(enemy["frame_index"])
+
+                    if enemy["state"] == "attack1":
+                        attack_is_active = 8 <= attack_frame <= 9
+                        attack_damage = enemy["attack1_damage"]
+                        attack_width = 280
+                        attack_height = 170
+                        attack_y = enemy_rect.y + 35
+                    else:
+                        attack_is_active = 6 <= attack_frame <= 7
+                        attack_damage = enemy["attack2_damage"]
+                        attack_width = 190
+                        attack_height = 170
+                        attack_y = enemy_rect.y + 55
+
+                    if enemy["direction"] == 1:
+                        boss_attack_rect = pygame.Rect(
+                            enemy_rect.right,
+                            attack_y,
+                            attack_width,
+                            attack_height
+                        )
+                    else:
+                        boss_attack_rect = pygame.Rect(
+                            enemy_rect.left - attack_width,
+                            attack_y,
+                            attack_width,
+                            attack_height
+                        )
+
+                    if (
+                        attack_is_active
+                        and not enemy["attack_has_hit"]
+                        and player_invincible <= 0
+                        and boss_attack_rect.colliderect(player_rect)
+                    ):
+                        player_health -= attack_damage
+                        if player_health < 0:
+                            player_health = 0
+
+                        player_invincible = 70
+                        player_hitstun = 25
+                        player_animation = "knockback"
+                        player_frame_index = 0
+                        attacking = False
+                        combo_stage = 0
+                        combo_window = False
+                        combo_input = False
+                        combo_timer = 0
+                        attack_timer = 0
+                        attack_hitbox = None
+                        enemy["attack_has_hit"] = True
+
+                        knockback_power = 14
+                        if player_rect.centerx < enemy_rect.centerx:
+                            player_knockback_velocity = -knockback_power
+                            player_facing = 1
+                        else:
+                            player_knockback_velocity = knockback_power
+                            player_facing = -1
+
+                elif enemy["attack_cooldown"] <= 0:
+                    if abs_distance_x <= enemy["attack2_range"]:
+                        enemy["state"] = "attack2"
+                        enemy["current_animation"] = "attack2"
+                        enemy["frame_index"] = 0
+                        enemy["attack_has_hit"] = False
+
+                    elif abs_distance_x <= enemy["attack1_range"]:
+                        enemy["state"] = "attack1"
+                        enemy["current_animation"] = "attack1"
+                        enemy["frame_index"] = 0
+                        enemy["attack_has_hit"] = False
+
+                else:
+                    if abs_distance_x < enemy["keep_distance_min"]:
+                        enemy["vel_x"] = (
+                            -enemy["speed"]
+                            * enemy["direction"]
+                        )
+                    elif abs_distance_x > enemy["keep_distance_max"]:
+                        enemy["vel_x"] = (
+                            enemy["speed"]
+                            * enemy["direction"]
+                        )
+
+                    if enemy["vel_x"] != 0:
+                        if enemy["current_animation"] != "move":
+                            enemy["current_animation"] = "move"
+                            enemy["frame_index"] = 0
+                    else:
+                        if enemy["current_animation"] != "idle":
+                            enemy["current_animation"] = "idle"
+                            enemy["frame_index"] = 0
+
+            else:
+                if enemy["current_animation"] != "idle":
+                    enemy["current_animation"] = "idle"
+                    enemy["frame_index"] = 0
+
+            enemy_rect.x += enemy["vel_x"]
+
+            for wall in collision_walls:
+
+                if enemy_rect.colliderect(wall):
+
+                    if enemy["vel_x"] > 0:
+                        enemy_rect.right = wall.left
+
+                    elif enemy["vel_x"] < 0:
+                        enemy_rect.left = wall.right
+
+            enemy["hurtbox"].topleft = enemy["rect"].topleft
+            enemy["hurtbox"].size = enemy["rect"].size
+
     # =====================
     # 이벤트 처리
     # =====================
@@ -1583,6 +2007,18 @@ while running:
             if event.key == pygame.K_i:
                 if can_interact:
                     player_health = player_max_health
+
+            if event.key == pygame.K_1:
+                warp_to_chapter(1)
+
+            if event.key == pygame.K_2:
+                warp_to_chapter(2)
+
+            if event.key == pygame.K_3:
+                warp_to_chapter(3)
+
+            if event.key == pygame.K_4:
+                warp_to_chapter(3, boss_start=True)
 
             if event.key == pygame.K_o and player_hitstun <= 0 and not chapter_transition:
 
@@ -1676,6 +2112,7 @@ while running:
 
         if (
             player_animation != "air_attack"
+            and enemy["type"] != "miniboss2"
             and player_hurtbox.colliderect(enemy["rect"])
         ):
 
@@ -1734,7 +2171,7 @@ while running:
                         player_attack_damage
                     )
 
-                    if enemy["type"] != "miniboss1":
+                    if enemy["type"] not in ("miniboss1", "miniboss2"):
                         enemy["hitstun"] = 12
                         knockback_power = 50
 
@@ -1768,11 +2205,35 @@ while running:
             boss_fight_started = False
             boss_walls = []
 
+        if any(
+            enemy["type"] == "miniboss2"
+            and enemy["health"] <= 0
+            for enemy in enemies
+        ):
+            chapter3_miniboss_defeated = True
+            chapter3_boss_fight_started = False
+            boss_walls = []
+
         enemies = [
             enemy
             for enemy in enemies
-            if enemy["health"] > 0
+            if (
+                enemy["health"] > 0
+                or (
+                    enemy["type"] == "miniboss2"
+                    and not enemy.get("death_finished", False)
+                )
+            )
         ]
+
+    enemies = [
+        enemy
+        for enemy in enemies
+        if not (
+            enemy["type"] == "miniboss2"
+            and enemy.get("death_finished", False)
+        )
+    ]
 
     can_interact = False
     current_heal_objects = None
@@ -2195,7 +2656,12 @@ while running:
     # 적
     for enemy in enemies:
 
-        if enemy["direction"] == 1:
+        if enemy.get("faces_right", False):
+            should_flip = enemy["direction"] == -1
+        else:
+            should_flip = enemy["direction"] == 1
+
+        if should_flip:
             animation = enemy["flipped_animations"][
                 enemy["current_animation"]
             ]
@@ -2208,19 +2674,39 @@ while running:
             int(enemy["frame_index"])
         ]
 
+        if enemy.get("use_player_style_draw", False):
+            enemy_draw_x = (
+                enemy["rect"].centerx
+                - image.get_width() // 2
+            )
+            enemy_draw_x += enemy["draw_offset_x"]
+
+            enemy_draw_y = (
+                enemy["rect"].bottom
+                - image.get_height()
+            )
+            enemy_draw_y += enemy["draw_offset_y"]
+
+            if enemy["direction"] == 1:
+                enemy_draw_x += enemy["draw_right_offset_x"]
+            elif enemy["direction"] == -1:
+                enemy_draw_x += enemy["draw_left_offset_x"]
+
+        else:
+            enemy_draw_x = (
+                enemy["rect"].x
+                + enemy["sprite_offset_x"]
+            )
+            enemy_draw_y = (
+                enemy["rect"].y
+                + enemy["sprite_offset_y"]
+            )
+
         screen.blit(
             image,
             (
-                int(
-                    enemy["rect"].x
-                    + enemy["sprite_offset_x"]
-                    - camera_x
-                ),
-                int(
-                    enemy["rect"].y
-                    + enemy["sprite_offset_y"]
-                    - camera_y
-                )
+                int(enemy_draw_x - camera_x),
+                int(enemy_draw_y - camera_y)
             )
         )
 
